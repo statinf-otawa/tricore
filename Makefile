@@ -1,9 +1,9 @@
 # Makefile for tricore using GLISS V2
 
 # configuration
-GLISS_PREFIX=/home/barre/bzr_projects/gliss2
+GLISS_PREFIX=../gliss2
 WITH_DISASM=1	# comment it to prevent disassembler building
-WITH_SIM=1	# comment it to prevent simulator building
+WITH_SIM=1		# comment it to prevent simulator building
 
 MEMORY=vfast_mem
 #LOADER=old_elf
@@ -28,23 +28,21 @@ GFLAGS=\
 	-m env:void_env \
 	-m loader:old_elf \
 	-a disasm.c \
+	-a used_regs.c
 # correct fetch and decode will be chosen auto
 # except if you want one of the optimized decode (for the moment)
 #	-m fetch:fetch \
 #	-m decode:decode \
 
-NMP =\
-	carcore.nmp
-# other nmps should be listed also for a correct makefile
+MAIN_NMP=carcore.nmp
+NMP = $(shell find nmp -name "*.nmp")
 
 
 # targets
 all: lib $(GOALS)
 
-carcore.nmp:	nmp/carcore.nmp
-
 carcore.nml: $(NMP)
-	(cd nmp; pwd; $(GLISS_PREFIX)/gep/gliss-nmp2nml.pl $< ../$@)
+	(cd nmp; pwd; ../$(GLISS_PREFIX)/gep/gliss-nmp2nml.pl $(MAIN_NMP) ../$@)
 
 carcore.irg: carcore.nml
 	$(GLISS_PREFIX)/irg/mkirg $< $@
@@ -52,7 +50,7 @@ carcore.irg: carcore.nml
 src include: carcore.irg
 	$(GLISS_PREFIX)/gep/gep $(GFLAGS) $< -S
 
-lib: src include/carcore/config.h src/disasm.c
+lib: src include/carcore/config.h src/disasm.c src/used_regs.c
 	(cd src; make)
 
 carcore-disasm:
@@ -64,6 +62,9 @@ carcore-sim:
 include/carcore/config.h: config.tpl
 	test -d include/carcore || mkdir include/carcore
 	cp config.tpl include/carcore/config.h
+
+src/used_regs.c: carcore.irg
+	$(GLISS_PREFIX)/gep/gliss-used-regs $<
 
 src/disasm.c: carcore.irg
 	$(GLISS_PREFIX)/gep/gliss-disasm $< -o $@ -c

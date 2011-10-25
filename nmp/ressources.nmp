@@ -23,15 +23,15 @@ reg P[2**(AREGS-1),double_word] //alias = A[0] //64 bits adress registers
 
 //reg CSFR[13,word] //core special function register
 
-reg PCXI[1,word] //alias = CSFR[0] //previous context information
-reg PSW[1,word] //initial = 0x00000B80 //alias = CSFR[1] //program status word
-reg PC[1,word]	__attr(pc) //alias = CSFR[2] //program counter register
-reg SYSCON[1,word] //initial = 0x00000000//alias = CSFR[3] //system configuration register
-reg CPU_ID[1,word] //alias = CSFR[4] //CPU identification register
-reg ICR[1,word] //initial = 0x00000000//alias = CSFR[9] //Interrupt Control Register
-reg FCX[1,word] //alias = CSFR[10] //free CSA list head pointer register
-reg LCX[1,word] //alias = CSFR[11] //free CSA list limit pointer
-reg ISP[1,word] //alias = CSFR[?] // Interrupt stack pointer
+reg PCXI[1,word] 		//alias = CSFR[0] //previous context information
+reg PSW[1,word] 		//initial = 0x00000B80 //alias = CSFR[1] //program status word
+reg PC[1,word] pc = 1	//alias = CSFR[2] //program counter register
+reg SYSCON[1,word]		//initial = 0x00000000//alias = CSFR[3] //system configuration register
+reg CPU_ID[1,word]		//alias = CSFR[4] //CPU identification register
+reg ICR[1,word]			//initial = 0x00000000//alias = CSFR[9] //Interrupt Control Register
+reg FCX[1,word]			//alias = CSFR[10] //free CSA list head pointer register
+reg LCX[1,word]			//alias = CSFR[11] //free CSA list limit pointer
+reg ISP[1,word]			//alias = CSFR[?] // Interrupt stack pointer
 
 
 reg DBGSR[1,word] //initial = 0x00000000//debug status register
