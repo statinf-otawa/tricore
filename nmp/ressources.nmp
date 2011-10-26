@@ -16,10 +16,10 @@ type index = card(AREGS)
 
 //les alias ne fonctionnent pas -> CSFR inutile, "initial = " ne fonctionne pas
 
-reg A[2**AREGS,word] //adress registers
-reg D[2**DREGS,word] //data registers
-reg E[2**(DREGS-1),double_word] //alias = D[0] //64 bits data registers
-reg P[2**(AREGS-1),double_word] //alias = A[0] //64 bits adress registers
+reg A[2**AREGS,word]							//adress registers
+reg D[2**DREGS,word]							//data registers
+reg E[2**(DREGS-1),double_word] alias = D[0]	//64 bits data registers
+reg P[2**(AREGS-1),double_word] alias = A[0]	//64 bits adress registers
 
 //reg CSFR[13,word] //core special function register
 
