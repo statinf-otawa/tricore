@@ -1,4 +1,4 @@
-let proc = "carcore"
+let proc = "tricore"
 let AREGS = 4
 let DREGS = 4
 let MEM_SIZE = 32

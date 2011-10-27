@@ -10,16 +10,17 @@ MEMORY=vfast_mem
 
 
 # files
+ARCH=tricore
 GOALS=
 ifdef WITH_DISASM
-GOALS+=carcore-disasm
+GOALS+=$(ARCH)-disasm
 endif
 ifdef WITH_SIM
-GOALS+=carcore-sim
+GOALS+=$(ARCH)-sim
 endif
 
 SUBDIRS=src sim disasm
-CLEAN=carcore.nml carcore.irg
+CLEAN=$(ARCH).nml $(ARCH).irg
 DISTCLEAN=include src disasm sim
 
 GFLAGS=\
@@ -34,39 +35,39 @@ GFLAGS=\
 #	-m fetch:fetch \
 #	-m decode:decode \
 
-MAIN_NMP=carcore.nmp
+MAIN_NMP=$(ARCH).nmp
 NMP = $(shell find nmp -name "*.nmp")
 
 
 # targets
 all: lib $(GOALS)
 
-carcore.nml: $(NMP)
+$(ARCH).nml: $(NMP)
 	(cd nmp; pwd; ../$(GLISS_PREFIX)/gep/gliss-nmp2nml.pl $(MAIN_NMP) ../$@)
 
-carcore.irg: carcore.nml
+$(ARCH).irg: $(ARCH).nml
 	$(GLISS_PREFIX)/irg/mkirg $< $@
 
-src include: carcore.irg
+src include: $(ARCH).irg
 	$(GLISS_PREFIX)/gep/gep $(GFLAGS) $< -S
 
-lib: src include/carcore/config.h src/disasm.c src/used_regs.c
+lib: src include/$(ARCH)/config.h src/disasm.c src/used_regs.c
 	(cd src; make)
 
-carcore-disasm:
+$(ARCH)-disasm:
 	cd disasm; make
 
-carcore-sim:
+$(ARCH)-sim:
 	cd sim; make
 
-include/carcore/config.h: config.tpl
-	test -d include/carcore || mkdir include/carcore
-	cp config.tpl include/carcore/config.h
+include/$(ARCH)/config.h: config.tpl
+	test -d include/$(ARCH) || mkdir include/$(ARCH)
+	cp config.tpl include/$(ARCH)/config.h
 
-src/used_regs.c: carcore.irg
+src/used_regs.c: $(ARCH).irg
 	$(GLISS_PREFIX)/gep/gliss-used-regs $<
 
-src/disasm.c: carcore.irg
+src/disasm.c: $(ARCH).irg
 	$(GLISS_PREFIX)/gep/gliss-disasm $< -o $@ -c
 
 distclean: clean
