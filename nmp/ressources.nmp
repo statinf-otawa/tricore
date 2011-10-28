@@ -5,7 +5,7 @@ let MEM_SIZE = 32
 
 //the memory is little endian
 let M_is_little = 0
-// let bit_order = "uppmost"
+let bit_order = "lowermost"
 let bit_image_order =  1
 
 type word = card(32)
