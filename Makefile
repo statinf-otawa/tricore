@@ -4,6 +4,7 @@
 GLISS_PREFIX=../gliss2
 WITH_DISASM=1	# comment it to prevent disassembler building
 WITH_SIM=1		# comment it to prevent simulator building
+#WITH_DYNLIB=1	# uncomment to link with a shared object
 
 MEMORY=vfast_mem
 #LOADER=old_elf
@@ -37,7 +38,9 @@ GFLAGS=\
 
 MAIN_NMP=$(ARCH).nmp
 NMP = $(shell find nmp -name "*.nmp")
-
+ifdef WITH_DYNLIB
+MFLAGS=WITH_DYNLIB=1
+endif
 
 # targets
 all: lib $(GOALS)
@@ -52,7 +55,7 @@ src include: $(ARCH).irg
 	$(GLISS_PREFIX)/gep/gep $(GFLAGS) $< -S
 
 lib: src include/$(ARCH)/config.h src/disasm.c src/used_regs.c
-	(cd src; make)
+	(cd src; make $(MFLAGS))
 
 $(ARCH)-disasm:
 	cd disasm; make
