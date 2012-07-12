@@ -451,7 +451,7 @@ op not16 (a:reg_d)
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
-op cmov16 = cmov16_reg|cmov16_const
+op cmov16 = cmov16_reg|cmov16_const|cmovn16_const
 
 op cmov16_reg (a:reg_d,b:reg_d)
    syntax = format("cmov %s,d15,%s",a.syntax,b.syntax)
@@ -475,3 +475,16 @@ op cmov16_const (a:reg_d,const:const4)
 		endif;
 		}
 	otawa_sem = "SETI(T1, 0); CMP(T1, D15, T1); IF(NE, T1, 1); SETI(D(0), S4(1));"
+	
+op cmovn16_const (a:reg_d,const:const4)
+   syntax = format("cmovn %s,d15,%s",a.syntax,const.syntax)
+   image = format("%s%s11101010",const.image,a.image)
+   action = 	{ 
+		if (D[15] == 0)
+		then
+			sign_ext4to32(const,TMP_1);
+			a = TMP_1;
+		endif;
+		}
+	otawa_sem = "SETI(T1, 0); CMP(T1, D15, T1); IF(EQ, T1, 1); SETI(D(0), S4(1));"
+	
