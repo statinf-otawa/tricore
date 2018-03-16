@@ -440,9 +440,9 @@ op lt16_reg (a:reg_d, b:reg_d)
 op lt16_const (a:reg_d, const:const4)
    syntax = format ("lt d15,%s,%s",a.syntax,const.syntax)
    image = format("%s%s11111010",const.image,a.image)
-   action = 	{
-		zero_ext32(TMP_1,const,4);
+   action = {
+		zero_ext32(const, TMP_1, 4);
 	  	D[15] = (a<TMP_1);
-   		}
+   	}
    	otawa_sem = "SCRATCH(D15);" 
    
