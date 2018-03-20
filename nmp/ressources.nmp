@@ -4,14 +4,17 @@ let DREGS = 4
 let MEM_SIZE = 32
 
 //the memory is little endian
-let M_is_little = 0
-let bit_order = "lowermost"
+let M_is_little = 1
+let bit_order = "uppermost"
 let bit_image_order =  1
 
+type bit = card(1)
+type half = card(16)
 type word = card(32)
 type double_word = card(64)
 type byte = card(8)
 type index = card(AREGS)
+type flots = float( 23 , 9 )
 
 
 //les alias ne fonctionnent pas -> CSFR inutile, "initial = " ne fonctionne pas
@@ -36,9 +39,34 @@ reg ISP[1,word]			//alias = CSFR[?] // Interrupt stack pointer
 
 reg DBGSR[1,word] //initial = 0x00000000//debug status register
 reg SWEVT[1,word] //initial = 0x00000000//software debug event register
+reg DBGTCR[1,word] //debug trap control register
+reg DCX[1,word]	//debug context save area pointer
 
+var tmp1[1,bit]
+var tmp0[1,bit]
+var tmp2[1,bit]
+var tmp3[1,bit]
+var tmp4[1,bit]
+var tmp5[1,bit]
+var tmp6[1,bit]
+var tmp7[1,bit]
+
+var result_byte1[1,byte]
+var result_byte2[1,byte]
+var result_byte3[1,byte]
+var result_byte0[1,byte]
+
+var result_halfword1[1,half]
+var result_halfword0[1,half]
+var tmp_half1[1,half]
+var tmp_half0[1,half]
+var ind[1,half]
+var incr[1,half]
+var new_ind[1,half]
+var len[1,half]
 
 var result[1,word]
+var TMP_0[1,word]
 var TMP_1[1,word]
 var TMP_2[1,word]
 var TMP_3[1,word]
@@ -47,6 +75,15 @@ var TMP_5[1,word]
 var MAX[1,word]
 var MIN[1,word]
 var indice[1,word]
+var dividende[1,word]
+var diviseur[1,word]
+var quotient[1,word]
+var reste[1,word]
+
+var sc1[1, bool]
+var sc0[1, bool]
+var result_word1[1, int(32)]
+var result_word0[1, int(32)]
 
 var TMP64_1[1,double_word]
 var TMP64_2[1,double_word]
@@ -62,6 +99,18 @@ var fp_exp[1, card(8)]
 var fp_frac[1, card(23)]
 var int_exp[1, int(32)]
 var int_mant[1, int(32)]
+
+var fl1[1,flots]
+var fl0[1,flots]
+var fl2[1,flots]
+var preres[1,flots]
+var norres[1,flots]
+
+var setFI[1,bit]
+var setFV[1,bit]
+var setFZ[1,bit]
+var setFU[1,bit]
+var setFX[1,bit]
 
 
 ///////////////////////////////////////////
@@ -91,6 +140,13 @@ macro CDC = \
 
 macro IO = \
 	PSW<10..11>
+	
+macro FS = CFLAG
+macro FI = VFLAG
+macro FV = SVFLAG
+macro FZ = AVFLAG
+macro FU = SAVFLAG
+macro FX = PSW<26..26>
 
 ///////////////////////////////////////////
 // free CSA list head pointer register
@@ -147,19 +203,180 @@ macro EVTA = \
 	SWEVT<0..2>
 
 ///////////////////////////////////////////
-// Usefull macro
+// Debug trap control
 ///////////////////////////////////////////
+
+macro DTA = \
+	DBGTCR<0..0>
+
+///////////////////////////////////////////
+// Float macro
+///////////////////////////////////////////
+
+macro fl_lt(x,y) = if(x<y) then 1 else 0 endif
+macro fl_gt(x,y) = if(x>y) then 1 else 0 endif
+macro fl_eq(x,y) = if(x==y) then 1 else 0 endif
+
+macro is_denorm(x) = if((x<30..23>==0) && (x<22..0>!=0)) then 1 else 0 endif
+
+macro denorm_to_zero(x,res) = \
+	if ((x<0) && (x>-2**126)) then res = -0.0;\
+	else if ((x>0) && (x<2**126)) then res = +0.0;\
+	else res = x;\
+	endif; \
+	endif;
+	
+macro isSnan(x,res) =\
+	if ((x<30..23> == 0b11111111) && (x<22..22> == 0b0) && (x<21..0> != 0)) then \
+		res=1; \
+	else \
+		res=0; \
+	endif;
+		
+macro isQnan(x,res) = \
+	if ((x<30..23> == 0b11111111) && (x<22..22> == 0b1)) then \
+		res=1; \
+	else \
+		res=0; \
+	endif;
+
+macro isNan(x,res) = \
+	isSnan(x,tmp6);\
+	isQnan(x,tmp7);\
+	if (tmp6 || tmp7) then \
+		res=1; \
+	else \
+		res=0;\
+	endif;
+
+macro is_pos_inf(x,res) = \
+	if(x<31..0> == 0x7F800000) then \
+		res=1; \
+	else \
+		res=0; \
+	endif;
+	
+macro is_neg_inf(x,res) = \
+	if(x<31..0> == 0xFF800000) then \
+		res=1; \
+	else \
+		res=0; \
+	endif;
+
+macro is_inf(x,res) = \
+	is_pos_inf(x,tmp6);\
+	is_neg_inf(x,tmp7);\
+	if (tmp6 || tmp7) then \
+		res=1; \
+	else \
+		res=0;\
+	endif;
+
+macro is_zero(x,res) = if(x<30..0>==0) then res=1; else res=0; endif;
+
+macro fp_abs(x,res) = \
+	if (x<0.0) then \
+		res = 0.0-x; \
+	else \
+		res=x; \
+	endif;
+
+///////////////////////////////////////////
+// Useful macro
+///////////////////////////////////////////
+
+macro reverse16(v,rev) =\
+	rev<15..15>=v<0..0>;\
+	rev<15..14>=v<1..1>;\
+	rev<13..13>=v<2..2>;\
+	rev<12..12>=v<3..3>;\
+	rev<11..11>=v<4..4>;\
+	rev<10..10>=v<5..5>;\
+	rev<9..9>=v<6..6>;\
+	rev<8..8>=v<7..7>;\
+	rev<7..7>=v<8..8>;\
+	rev<6..6>=v<9..9>;\
+	rev<5..5>=v<10..10>;\
+	rev<4..4>=v<11..11>;\
+	rev<3..3>=v<12..12>;\
+	rev<2..2>=v<13..13>;\
+	rev<1..1>=v<14..14>;\
+	rev<0..0>=v<15..15>;
+
+macro vabs(b) = if b >= 0 then b else 0 - b endif
+
+macro word0(v) = coerce(int(32), v<31..0>)
+macro uword0(v) = coerce(card(32), v<31..0>)
+
+macro half1(v) = coerce(int(16), v<31..16>)
+macro half0(v) = coerce(int(16), v<15..0>)
+macro uhalf1(v) = coerce(card(16), v<31..16>)
+macro uhalf0(v) = coerce(card(16), v<15..0>)
+
+macro equals(a, b) = if a == b then 0xffffffff else 0 endif
+macro f_lt(a, b) = if a < b then 0xffffffff else 0 endif
+
+macro byte3(v) = (coerce(int(8), (v)<31..24>))
+macro byte2(v) = (coerce(int(8), (v)<23..16>))
+macro byte1(v) = (coerce(int(8), (v)<15..8>))
+macro byte0(v) = (coerce(int(8), (v)<7..0>))
+macro ubyte3(v) = (coerce(card(8), (v)<31..24>))
+macro ubyte2(v) = (coerce(card(8), (v)<23..16>))
+macro ubyte1(v) = (coerce(card(8), (v)<15..8>))
+macro ubyte0(v) = (coerce(card(8), (v)<7..0>))
+
+macro fabsdif(a, b) = if a > b then a - b else b - a endif
 
 macro carry(result) =\
 	CFLAG = result<32..32>;
 
-macro overflow(result) =\
-	if ((result > 0x7FFFFFFF) || (result < 0xFFFFFFFF80000000))\
+macro overflow64(result) =\
+	if ((result > 0x7FFFFFFFFFFFFFFF) || (result < 0x8000000000000000))\
 	then\
 		VFLAG=1;\
 	else\
 		VFLAG=0;\
 	endif
+	
+macro overflow64_u(result) =\
+	if ((result > 0xFFFFFFFFFFFFFFFF) || (result < 0x0000000000000000))\
+	then\
+		VFLAG=1;\
+	else\
+		VFLAG=0;\
+	endif
+
+macro overflow(result) =\
+	if ((result > 0x7FFFFFFF) || (result < -0x80000000))\
+	then\
+		VFLAG=1;\
+	else\
+		VFLAG=0;\
+	endif
+	
+macro overflow_h(result_halfword0,result_halfword1) = \
+	if(result_halfword0 > 0x7FFF || result_halfword0 < -0x8000 || result_halfword1 > 0x7FFF || result_halfword1 < -0x8000)\
+	 then\
+			VFLAG = 1;\
+		else\
+			VFLAG = 0;\
+		endif
+		
+macro overflow_h64(result_word0,result_word1) = \
+	if(result_word0 > 0x7FFFFFFF || result_word0 < -0x80000000 || result_word1 > 0x7FFFFFFF || result_word1 < -0x80000000)\
+	 then\
+			VFLAG = 1;\
+		else\
+			VFLAG = 0;\
+		endif
+
+macro overflow_b(result_byte3,result_byte2,result_byte1,result_byte0) =\
+	if(result_byte3>0x7F || result_byte3<-0x80 || result_byte2>0x7F || result_byte2<-0x80 || result_byte1>0x7F || result_byte1<-0x80 ||result_byte0>0x7F || result_byte0<-0x80)\
+	 then\
+			VFLAG = 1;\
+		else\
+			VFLAG = 0;\
+		endif
 
 macro overflow_u(result) =\
 	if ((result > 0xFFFFFFFF) || (result < 0x00000000))\
@@ -179,20 +396,45 @@ macro stickyOverflow() =\
 	endif
 
 macro advancedOverflow(result) =\
-	if (result<31..31> ==  1) && (result<30..30> == 1)\
+	if (result<31..31> ^ result<30..30>)\
 	then\
 		AVFLAG = 1;\
 	else\
 		AVFLAG = 0;\
 	endif
-
+	
 macro advancedOverflow64(result) =\
-	if (result<63..63> ==  1) && (result<62..62> == 1)\
+	if (result<63..63> ^ result<62..62>)\
 	then\
 		AVFLAG = 1;\
 	else\
 		AVFLAG = 0;\
 	endif
+	
+macro advancedOverflow_h64(result_halfword0,result_halfword1) = \
+	if ((result_halfword0<31..31> ^ result_halfword0<30..30>) ||(result_halfword1<31..31> ^ result_halfword1<30..30>))\
+	 then\
+			AVFLAG = 1;\
+		else\
+			AVFLAG = 0;\
+		endif
+		
+macro advancedOverflow_h(result_halfword0,result_halfword1) = \
+	if ((result_halfword0<15..15> ^ result_halfword0<14..14>) ||(result_halfword1<15..15> ^ result_halfword1<14..14>))\
+	 then\
+			AVFLAG = 1;\
+		else\
+			AVFLAG = 0;\
+		endif
+
+macro advancedOverflow_b(result_byte3,result_byte2,result_byte1,result_byte0) =\
+	if((result_byte3<7..7> ^ result_byte3<6..6>) ||(result_byte2<7..7> ^ result_byte2<6..6>) || (result_byte1<7..7> ^ result_byte1<6..6> )|| (result_byte0<7..7> ^ result_byte0<6..6>))\
+	 then\
+			AVFLAG = 1;\
+		else\
+			AVFLAG = 0;\
+		endif
+
 
 macro stickyAdvancedOverflow() =\
 	if (AVFLAG)\
@@ -208,6 +450,14 @@ macro sign_ext4to32(const, temp) =\
 	if temp<3..3> == 1\
 	then\
         	temp<4..31> = 0xFFFFFFF;\
+        endif 
+        
+macro sign_ext5to32(const, temp) =\
+	temp<5..31> = 0x0000000;\
+	temp<0..4> = const<0..4>;\
+	if temp<4..4> == 1\
+	then\
+        	temp<5..31> = 0xFFFFFFF;\
         endif 
 
 macro sign_ext8to32(const, temp) =\
@@ -225,6 +475,14 @@ macro sign_ext9to32(const, temp) =\
 	then\
         	temp<9..31> = 0x7FFFFF;\
         endif 
+        
+macro sign_ext10to32(const, temp) =\
+	temp<10..31> = 0x000000;\
+	temp<0..9> = const<0..9>;\
+	if temp<9..9> == 1\
+	then\
+        	temp<10..31> = 0x7FFFFF;\
+        endif 
 
 macro sign_ext16to32(const, temp) =\
 	temp<16..31> = 0x0000;\
@@ -233,10 +491,35 @@ macro sign_ext16to32(const, temp) =\
 	then\
         	temp<16..31> = 0xFFFF;\
         endif
+        
+macro sign_ext16to64(const, temp) =\
+	temp<16..63> = 0x000000000000;\
+	temp<0..15> = const<0..15>;\
+	if (temp<15..15> == 1)\
+	then\
+        	temp<16..63> = 0xFFFFFFFFFFFF;\
+        endif
+        
+macro sign_ext32to64(const, temp) =\
+	temp<32..63> = 0x00000000;\
+	temp<0..31> = const<0..31>;\
+	if (temp<31..31> == 1)\
+	then\
+        	temp<32..63> = 0xFFFFFFFFFFFF;\
+        endif
+        
+macro sign_ext15to32(const, temp) =\
+	temp<15..31> = 0x0000;\
+	temp<0..14> = const<0..14>;\
+	if (temp<14..14> == 1)\
+	then\
+        	temp<15..31> = 0x1FFFF;\
+        endif
 
 macro zero_ext32(const, temp, n) =\
 	temp = 0x00000000;\
 	temp<0..(n-1)> = const
+	
 
 macro ssov(x, y, res) =\
 	MAX = (1 << (y-1))-1;\
@@ -277,24 +560,24 @@ macro abso(val, temp) =\
 	endif
 		 
 macro storeWord(word,add) =\
-	M[add] = word<0..7>;\
-	M[add+1] = word<8..15>;\
-	M[add+2] = word<16..23>;\
-	M[add+3] = word<24..31>
+	M[add] = word<7..0>;\
+	M[add+1] = word<15..8>;\
+	M[add+2] = word<23..16>;\
+	M[add+3] = word<31..24>
 
 macro storeHalfWord(halfWord,add) =\
-	M[add] = halfWord<0..7>;\
-	M[add+1] = halfWord<8..15>
+	M[add] = halfWord<7..0>;\
+	M[add+1] = halfWord<15..8>
 
 macro loadWord(word,add) =\
-	word<0..7> = M[add];\
-	word<8..15> = M[add+1];\
-	word<16..23> = M[add+2];\
-	word<24..31> = M[add+3]
+	word<7..0> = M[add];\
+	word<15..8> = M[add+1];\
+	word<23..16> = M[add+2];\
+	word<31..24> = M[add+3]
 
 macro loadHalfWord(word,add) =\
-	word<0..7> = M[add];\
-	word<8..15> = M[add+1]
+	word<7..0> = M[add];\
+	word<15..8> = M[add+1]
 
 macro cdc_incr(temp) = \
 	if (CDC == 0b1111111) \

@@ -1,0 +1,8 @@
+\.cproject
+\.project
+disasm
+include
+sim
+src
+tricore.irg
+tricore.nml

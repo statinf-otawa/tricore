@@ -3,4 +3,9 @@ include "32bits/controlinst.nmp"
 include "32bits/sysinst.nmp"
 include "32bits/meminst.nmp"
 
-op i32bits = aluinst|controlinst|sysinst|meminst
+//include "32bits/confidential.nmp"
+//include "32bits/packed.nmp"
+
+op i32bits = aluinst|controlinst|sysinst|meminst //|packed
+
+// |confidential

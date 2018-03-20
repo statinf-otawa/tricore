@@ -1,0 +1,16 @@
+This project contains the description of TriCore instruction set until Aurix TC275T version. Confidential instructions are not included.
+
+GLISS v2 is needed to get simulator, disassembler and libraries.
+It may be obtained from the TRACES team in IRIT labs (University of Toulouse):
+	https://www.irit.fr/-Equipe-TRACES-
+Or OTAWA's website:
+  * http://www.tracesgroup.net/otawa/2016/01/20/gliss/
+
+This project is distributed under LGL v3 license.
+
+Contributors includes:
+  * J. Barre
+  * H. Cassé <casse@irit.fr>
+  * Continental Corporation
+  * C. Rochange <rochange@irit.fr>
+

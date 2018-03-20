@@ -18,6 +18,7 @@ mode reg_e (r:index) = E[r]
 mode reg_p (r:index) = P[r]
      syntax = format("p%d",r)
      image = format("%4b",r)
+     i = r
 
 mode const4 (const:card(4)) = const
      syntax = format("#%d",const)
@@ -40,11 +41,12 @@ mode const16 (const:card(16)) = const
      v = const
 
 mode pos (p:card(5)) = p
-     syntax = format("%d",p)
+     syntax = format("#%d",p)
      image = format("%5b",p)
      v = p
 
 mode width5 (w:card(5)) = w
-     syntax = format("%d",w)
+     syntax = format("#%d",w)
      image = format("%5b",w)
      v = w
+     

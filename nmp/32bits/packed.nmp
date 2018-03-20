@@ -1,0 +1,468 @@
+
+op packed = packed_byte | packed_half
+
+
+// variables
+var _overflow[1, bool]
+var advanced_overflow[1, bool]
+
+// common macro
+macro abs(b) = if b >= 0 then b else 0 - b endif
+macro absdif(a, b) = if a > b then a - b else b - a endif
+macro eq(a, b) = if a == b then 0xffffffff else 0 endif
+macro lt(a, b) = if a < b then 0xffffffff else 0 endif
+macro ssovh(v) = (if v > 0x7FFFF then 0x7FFFF else if v < -0x8000 then -0x8000 else v endif endif)
+macro ssovhu(v) = (if v > 0xFFFF then 0xFFFF else v endif)
+macro ssov_mul(v, x, y) = (if ((x > 0 && y > 0) || (x < 0 && y < 0)) then 
+	if (v > 0) then v else 0x7FFFFFFFFFFFFFFF endif 
+	else 
+		if (v < 0) then v; else 0x8000000000000000 endif 
+	endif)
+
+
+// *** unary bytes packs ***
+
+macro ubyte3(v) = (coerce(card(8), (v)<31..24>))
+macro ubyte2(v) = (coerce(card(8), (v)<23..16>))
+macro ubyte1(v) = (coerce(card(8), (v)<15..8>))
+macro ubyte0(v) = (coerce(card(8), (v)<7..0>))
+macro byte3(v) = (coerce(int(8), (v)<31..24>))
+macro byte2(v) = (coerce(int(8), (v)<23..16>))
+macro byte1(v) = (coerce(int(8), (v)<15..8>))
+macro byte0(v) = (coerce(int(8), (v)<7..0>))
+
+var result_byte3[1, int(32)]
+var result_byte2[1, int(32)]
+var result_byte1[1, int(32)]
+var result_byte0[1, int(32)]
+
+var ov_byte3[1, bool]
+var ov_byte2[1, bool]
+var ov_byte1[1, bool]
+var ov_byte0[1, bool]
+var aov_byte3[1, bool]
+var aov_byte2[1, bool]
+var aov_byte1[1, bool]
+var aov_byte0[1, bool]
+
+op packed_byte = packed_byte_flags | packed_byte_not_flags
+
+op packed_byte_flags(i: packed_byte_inst)
+	syntax = i.syntax
+	image = i.image
+	action = {
+		i.action;
+		
+		ov_byte3 = (result_byte3 > 0x7F) || (result_byte3 < -0x80);
+		ov_byte2 = (result_byte2 > 0x7F) || (result_byte2 < -0x80);
+		ov_byte1 = (result_byte1 > 0x7F) || (result_byte1 < -0x80);
+		ov_byte0 = (result_byte0 > 0x7F) || (result_byte0 < -0x80);
+		_overflow = ov_byte3 || ov_byte2 || ov_byte1 || ov_byte0;
+		if _overflow then VFLAG = 1; else VFLAG = 0; endif;
+		if _overflow then SVFLAG = 1; endif;
+
+		aov_byte3 = result_byte3<7..7> ^ result_byte3<6..6>;
+		aov_byte2 = result_byte2<7..7> ^ result_byte2<6..6>;
+		aov_byte1 = result_byte1<7..7> ^ result_byte1<6..6>;
+		aov_byte0 = result_byte0<7..7> ^ result_byte0<6..6>;
+		advanced_overflow = aov_byte3 || aov_byte2 || aov_byte1 || aov_byte0;
+		if advanced_overflow then AVFLAG = 1; else AVFLAG = 0; endif;
+		if advanced_overflow then SAVFLAG = 1; endif;
+	}
+
+op packed_byte_inst = abs_b | absdif_b | add_b | sub_b
+
+op abs_b(c: reg_d, b: reg_d)
+	syntax = format("abs.b %s, %s", c, b)
+	image = format("%s %8b XX XX %s XXXX %08b", c, 0x5C, b, 0x0B)
+	action = {
+		result_byte3 = abs(byte3(b));
+		result_byte2 = abs(byte2(b));
+		result_byte1 = abs(byte1(b));
+		result_byte0 = abs(byte0(b));
+		c = result_byte3<7..0> :: result_byte2<7..0> :: result_byte1<7..0> :: result_byte0<7..0>;
+	}
+
+op absdif_b(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("absdif.b %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x4E, b, a, 0x0B)
+	action = {
+		result_byte3 = absdif(byte3(a), byte3(b));
+		result_byte2 = absdif(byte2(a), byte2(b));
+		result_byte1 = absdif(byte1(a), byte1(b));
+		result_byte0 = absdif(byte0(a), byte0(b));
+		c = result_byte3<7..0> :: result_byte2<7..0> :: result_byte1<7..0> :: result_byte0<7..0>;
+	}
+
+op add_b(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("add.b %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x40, b, a, 0x0B)
+	action = {
+		result_byte3 = byte3(a) + byte3(b);
+		result_byte2 = byte2(a) + byte2(b);
+		result_byte1 = byte1(a) + byte1(b);
+		result_byte0 = byte0(a) + byte0(b);
+		c = result_byte3<7..0> :: result_byte2<7..0> :: result_byte1<7..0> :: result_byte0<7..0>;
+	}
+
+//op sub_b(c: reg_d, a: reg_d, b: reg_d)
+//	syntax = format("sub.b %s, %s, %s", c, a, b)
+//	image = format("%s %8b XX XX %s %s %08b", c, 0x48, b, a, 0x0B)
+//	action = {
+//		result_byte3 = byte3(a) - byte3(b);
+//		result_byte2 = byte2(a) - byte2(b);
+//		result_byte1 = byte1(a) - byte1(b);
+//		result_byte0 = byte0(a) - byte0(b);
+//		c = result_byte3<7..0> :: result_byte2<7..0> :: result_byte1<7..0> :: result_byte0<7..0>;
+//	}
+
+
+op packed_byte_not_flags =
+	eq_b | eqany_b | eqany_b_const9 | lt_b | lt_bu |
+	max_b | max_bu | min_b | min_bu
+
+op eq_b(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("eq.b %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x50, b, a, 0x0B)
+	action = {
+		c<31..24>	= eq(byte3(a), byte3(b));
+		c<23..16>	= eq(byte2(a), byte2(b));
+		c<15..8>	= eq(byte1(a), byte1(b));
+		c<7..0>		= eq(byte0(a), byte0(b));
+	}
+
+//op eqany_b_const9(c: reg_d, a: reg_d, const9: int(9))
+//	syntax = format("eqany.b %s, %s, %d", c, a, const9)
+//	image = format("%s %7b %9b %s %8b", c, 0x56, const9, a, 0x8B)
+//	action = {
+//		result_byte3 = byte3(a) == byte3(coerce(int(32), const9));
+//		result_byte2 = byte2(a) == byte2(coerce(int(32), const9));
+//		result_byte1 = byte1(a) == byte1(coerce(int(32), const9));
+//		result_byte0 = byte0(a) == byte0(coerce(int(32), const9));
+//		c = result_byte3<7..0> || result_byte2<7..0> || result_byte1<7..0> || result_byte0<7..0>;
+//	}
+
+//op eqany_b(c: reg_d, a: reg_d, b: reg_d)
+//	syntax = format("eqany.b %s, %s, %s", c, a, b)
+//	image = format("%s %8b XX XX %s %s %8b", c, 0x56, b, a, 0x0B)
+//	action = {
+//		result_byte3 = byte3(a) == byte3(b);
+//		result_byte2 = byte2(a) == byte2(b);
+//		result_byte1 = byte1(a) == byte1(b);
+//		result_byte0 = byte0(a) == byte0(b);
+//		c = result_byte3<7..0> || result_byte2<7..0> || result_byte1<7..0> || result_byte0<7..0>;
+//	}
+
+op lt_b(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("lt.b %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x52, b, a, 0x0B)
+	action = {
+		c<31..24> =	lt(byte3(a), byte3(b));
+		c<23..16> =	lt(byte2(a), byte2(b));
+		c<15..8>  = lt(byte1(a), byte1(b));
+		c<7..0>   = lt(byte0(a), byte0(b));
+	}
+
+op lt_bu(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("lt.bu %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x53, b, a, 0x0B)
+	action = {
+		c<31..24> = lt(ubyte3(a), ubyte3(b));
+		c<23..16> = lt(ubyte2(a), ubyte2(b));
+		c<15..8>  = lt(ubyte1(a), ubyte1(b));
+		c<7..0>   = lt(ubyte0(a), ubyte0(b));
+	}
+
+macro max(a, b) = if a > b then a else b endif
+
+op max_b(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("max.b %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x5A, b, a, 0x0B)
+	action = {
+		c<31..24>	= max(byte3(a), byte3(b));
+		c<23..16>	= max(byte2(a), byte2(b));
+		c<15..8>	= max(byte1(a), byte1(b));
+		c<7..0>		= max(byte0(a), byte0(b));
+	}
+
+op max_bu(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("max.bu %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x5B, b, a, 0x0B)
+	action = {
+		c<31..24>	= max(ubyte3(a), ubyte3(b));
+		c<23..16>	= max(ubyte2(a), ubyte2(b));
+		c<15..8>	= max(ubyte1(a), ubyte1(b));
+		c<7..0>		= max(ubyte0(a), ubyte0(b));
+	}
+
+macro min(a, b) = if a < b then a else b endif
+op min_b(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("min.b %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x58, b, a, 0x0B)
+	action = {
+		c<31..24>	= min(byte3(a), byte3(b));
+		c<23..16>	= min(byte2(a), byte2(b));
+		c<15..8>	= min(byte1(a), byte1(b));
+		c<7..0>		= min(byte0(a), byte0(b));
+	}
+
+op min_bu(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("min.bu %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x59, b, a, 0x0B)
+	action = {
+		c<31..24>	= min(ubyte3(a), ubyte3(b));
+		c<23..16>	= min(ubyte2(a), ubyte2(b));
+		c<15..8>	= min(ubyte1(a), ubyte1(b));
+		c<7..0>		= min(ubyte0(a), ubyte0(b));
+	}
+
+
+// ****** packed half instructions ******
+
+macro half1(v) = coerce(int(16), v<31..16>)
+macro half0(v) = coerce(int(16), v<15..0>)
+macro uhalf1(v) = coerce(card(16), v<31..16>)
+macro uhalf0(v) = coerce(card(16), v<15..0>)
+
+var result_halfword1[1, int(32)]
+var result_halfword0[1, int(32)]
+var ov_halfword1[1, bool]
+var ov_halfword0[1, bool]
+var aov_halfword1[1, bool]
+var aov_halfword0[1, bool]
+var sc1[1, bool]
+var sc0[1, bool]
+var result_word1[1, int(32)]
+var result_word0[1, int(32)]
+
+op packed_half = packed_half_flags | packed_half_noflags
+
+op packed_half_flags(i: packed_half_inst)
+	syntax = i.syntax
+	image = i.image
+	action = {
+		i.action;
+		
+		ov_halfword1 = (result_halfword1 > 0x7FFF) || (result_halfword1 < -0x8000);
+		ov_halfword0 = (result_halfword0 > 0x7FFF) || (result_halfword0 < -0x8000);
+		_overflow = ov_halfword1 || ov_halfword0;
+		if _overflow then VFLAG = 1; else VFLAG = 0; endif;
+		if _overflow then SVFLAG = 1; endif;
+
+		aov_halfword1 = result_halfword1<15..15> ^ result_halfword1<14..14>;
+		aov_halfword0 = result_halfword0<15..15> ^ result_halfword0<14..14>;
+		advanced_overflow = aov_halfword1 || aov_halfword0;
+		if advanced_overflow then AVFLAG = 1; else AVFLAG = 0; endif;
+		if advanced_overflow then SAVFLAG = 1; endif;
+	}
+
+op packed_half_inst =
+	  abs_h | absdif_h | absdifs_h | abss_h
+	| add_h | adds_h | adds_hu
+
+op abs_h(c: reg_d, b: reg_d)
+	syntax = format("abs.h %s, %s", c, b)
+	image = format("%s %8b XX XX %s XXXX %08b", c, 0x7C, b, 0x0B)
+	action = {
+		result_halfword1 = abs(half1(b));
+		result_halfword0 = abs(half0(b));
+		c = result_halfword1<15..0> :: result_halfword0<15..0>;
+	}
+
+op absdif_h(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("absdif.h %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x6E, b, a, 0x0B)
+	action = {
+		result_halfword1 = absdif(half1(a), half1(b));
+		result_halfword0 = absdif(half0(a), half0(b));
+		c = result_halfword1<15..0> :: result_halfword0<15..0>;
+	}
+
+op absdifs_h(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("absdifs.h %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x6F, b, a, 0x0B)
+	action = {
+		result_halfword1 = absdif(half1(a), half1(b));
+		result_halfword0 = absdif(half0(a), half0(b));
+		c = ssovh(result_halfword1)<15..0> :: ssovh(result_halfword0)<15..0>;
+	}
+
+op abss_h(c: reg_d, b: reg_d)
+	syntax = format("abss.h %s, %s", c, b)
+	image = format("%s %8b XX XX %s XXXX %08b", c, 0x7D, b, 0x0B)
+	action = {
+		result_halfword1 = abs(half1(b));
+		result_halfword0 = abs(half0(b));
+		c = ssovh(result_halfword1)<15..0> :: ssovh(result_halfword0)<15..0>;
+	}
+
+op add_h(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("add.h %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x60, b, a, 0x0B)
+	action = {
+		result_halfword1 = half1(a) + half1(b);
+		result_halfword0 = half0(a) + half0(b);
+		c = result_halfword1<15..0> :: result_halfword0<15..0>;
+	}
+
+//op adds_h(c: reg_d, a: reg_d, b: reg_d)
+//	syntax = format("adds.h %s, %s, %s", c, a, b)
+//	image = format("%s %8b XX XX %s %s %08b", c, 0x62, b, a, 0x0B)
+//	action = {
+//		result_halfword1 = half1(a) + half1(b);
+//		result_halfword0 = half0(a) + half0(b);
+//		c = ssovh(result_halfword1<15..0>) :: ssovh(result_halfword0)<15..0>;
+//	}
+
+//op adds_hu(c: reg_d, a: reg_d, b: reg_d)
+//	syntax = format("adds.hu %s, %s, %s", c, a, b)
+//	image = format("%s %8b XX XX %s %s %08b", c, 0x63, b, a, 0x0B)
+//	action = {
+//		result_halfword1 = half1(a) + half1(b);
+//		result_halfword0 = half0(a) + half0(b);
+//		c = ssovhu(result_halfword1<15..0>) :: ssovhu(result_halfword0)<15..0>;
+//	}
+
+op packed_half_noflags =
+	  eq_h | eqany_h | eqany_h_const9 | lt_h | lt_hu
+	| maddm_h_ll | maddm_h_lu | maddm_h_ul | maddm_h_uu
+	| maddms_h_ll | maddms_h_lu | maddms_h_ul | maddms_h_uu
+
+op eq_h(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("eq.h %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x70, b, a, 0x0B)
+	action = {
+		c<31..16>	= eq(half1(a), half1(b));
+		c<15..0>	= eq(half0(a), half0(b));
+	}
+
+//op eqany_h_const9(c: reg_d, a: reg_d, const9: int(9))
+//	syntax = format("eqany.h %s, %s, %d", c, a, const9)
+//	image = format("%s %7b %9b %s %8b", c, 0x76, const9, a, 0x8B)
+//	action = {
+//		result_halfword1 = half1(a) == half1(coerce(int(32), const9));
+//		result_halfword0 = half0(a) == half0(coerce(int(32), const9));
+//		c = result_halfword1<15..0> || result_halfword0<15..0>;
+//	}
+
+//op eqany_h(c: reg_d, a: reg_d, b: reg_d)
+//	syntax = format("eqany.h %s, %s, %s", c, a, b)
+//	image = format("%s %8b XX XX %s %s %8b", c, 0x76, b, a, 0x0B)
+//	action = {
+//		result_halfword1 = half1(a) == half1(b);
+//		result_halfword0 = half0(a) == half0(b);
+//		c = result_halfword1<15..0> || result_halfword0<15..0>;
+//	}
+
+
+op lt_h(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("lt.h %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x72, b, a, 0x0B)
+	action = {
+		c<31..16>	= lt(half1(a), half1(b));
+		c<15..0>	= lt(half0(a), half0(b));
+	}
+
+op lt_hu(c: reg_d, a: reg_d, b: reg_d)
+	syntax = format("lt.h %s, %s, %s", c, a, b)
+	image = format("%s %8b XX XX %s %s %08b", c, 0x73, b, a, 0x0B)
+	action = {
+		c<31..16>	= lt(half1(a), half1(b));
+		c<15..0>	= lt(half0(a), half0(b));
+	}
+
+op maddm_h_ll(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddm.h %s, %s, %s, %s LL, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x1E, n, b, a, 0x83)
+	action = {
+		sc1 = (half1(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		sc0 = (half0(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half1(a) * half0(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half1(a) * half1(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = result<63..0>;
+	}
+
+op maddm_h_lu(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddm.h %s, %s, %s, %s LU, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x1D, n, b, a, 0x83)
+	action = {
+		sc1 = (half1(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		sc0 = (half0(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half1(a) * half0(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half0(a) * half1(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = result<63..0>;
+	}
+
+op maddm_h_ul(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddm.h %s, %s, %s, %s UL, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x1C, n, b, a, 0x83)
+	action = {
+		sc1 = (half1(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		sc0 = (half0(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half1(a) * half1(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half0(a) * half0(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = result<63..0>;
+	}
+
+op maddm_h_uu(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddm.h %s, %s, %s, %s UU, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x1F, n, b, a, 0x83)
+	action = {
+		sc1 = (half0(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		sc0 = (half1(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half0(a) * half1(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half1(a) * half1(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = result<63..0>;
+	}
+
+op maddms_h_ll(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddms.h %s, %s, %s, %s LL, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x3E, n, b, a, 0x83)
+	action = {
+		sc1 = (half1(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		sc0 = (half0(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half1(a) * half0(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half0(a) * half0(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c=ssov_mul(result<63..0>, d, result_word1 + result_word0);
+	}
+
+op maddms_h_lu(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddms.h %s, %s, %s, %s LU, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x3D, n, b, a, 0x83)
+	action = {
+		sc1 = (half1(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		sc0 = (half0(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half1(a) * half0(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half0(a) * half1(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = ssov_mul(result<63..0>, d, result_word1 + result_word0);
+	}
+
+op maddms_h_ul(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddms.h %s, %s, %s, %s UL, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x3C, n, b, a, 0x83)
+	action = {
+		sc1 = (half1(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		sc0 = (half0(a) == 0x8000) && (half0(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half1(a) * half1(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half0(a) * half0(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = ssov_mul(result<63..0>, d, result_word1 + result_word0);
+	}
+
+op maddms_h_uu(c: reg_e, d: reg_e, a: reg_d, b: reg_d, n: card(2))
+	syntax = format("maddms.h %s, %s, %s, %s UU, %d", c, d, a, b, n)
+	image = format("%s %s %6b %2b %s %s %8b", c, d, 0x3F, n, b, a, 0x83)
+	action = {
+		sc1 = (half0(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		sc0 = (half1(a) == 0x8000) && (half1(b) == 0x8000) && (n == 1);
+		result_word1 = if sc1 then 0x7FFFFFFF else (half0(a) * half1(b)) << n endif;
+		result_word0 = if sc0 then 0x7FFFFFFF else (half1(a) * half1(b)) << n endif;
+		result = d + ((result_word1 + result_word0) << 16);
+		c = ssov_mul(result<63..0>, d, result_word1 + result_word0);
+	}

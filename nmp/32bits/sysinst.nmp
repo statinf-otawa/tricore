@@ -1,10 +1,7 @@
-op sysinst = dsync | isync | mtcr | mfcr | debug | disable | enable | nop32 | syscall | yield | tie | untie
+op sysinst = dsync | isync | mtcr | mfcr | debug | disable | disable2 | restore | enable | nop32 | syscall | tie | untie | rstv | ldcx | stcx | bisr | rfe | rfm | rslcx | trapsv | trapv 
 
 // CarCore instructions
-op yield()
-	syntax = "yield"
-	image = "00000100010000000000000000001101"
-	action = { }
+
 
 op tie()
 	syntax = "tie"
@@ -104,6 +101,22 @@ op disable (foo1:card(4),foo2:card(14))
    action =	{
 		IE = 0;
 		}
+		
+op disable2(a:reg_d)
+	syntax = format("disable %s", a.syntax)
+	image = format("XXXX %6b XXXXXXXXXX %s %8b",0x0F, a.image, 0x0D)
+	action = {
+		a<31..1> = 0;
+		a<0..0> = IE;
+		IE = 0;
+	}
+	
+op restore(a :reg_d)
+	syntax = format("restore %s", a.syntax)
+	image = format("XXXX %6b XXXXXXXXXX %s %8b", 0x0E, a.image, 0x0D)
+	action = {
+		IE = a<0..0>;
+	}
 
 op enable (foo1:card(4),foo2:card(14))
    syntax = "enable"
@@ -112,9 +125,9 @@ op enable (foo1:card(4),foo2:card(14))
 		IE = 1;
 		}
 
-op nop32 (foo1:card(4),foo2:card(14))
+op nop32 ()
    syntax = "nop"
-   image = format("%4b000000%14b00001101",foo1,foo2)
+   image = "XXXX 000000 XXXXXXXXXXXXXX 00001101"
    action = 	{
 		}
 
@@ -128,3 +141,363 @@ op syscall(const:card(32),foo1:card(4),foo2:card(4),cons:card(9))
    action = 	{
 		//TRAP(SYS,const9<0..7>)
 		}
+		
+op stcx = stlcx_abs | stlcx_ind |stucx_abs|stucx_ind
+		
+op stlcx_abs(off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_3:card(4))
+	predecode = {
+		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
+	}
+	syntax = format("stlcx %d",off18)
+	image = format("%4b 00 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	action = {
+		TMP_1 = off18<17..14> :: 00000000000000 :: off18<13..0>;
+		storeWord(PCXI,TMP_1);
+		storeWord(A[11],TMP_1+4);
+		storeWord(A[2],TMP_1+8);
+		storeWord(A[3],TMP_1+12);
+		storeWord(D[0],TMP_1+16);
+		storeWord(D[1],TMP_1+20);
+		storeWord(D[2],TMP_1+24);
+		storeWord(D[3],TMP_1+28);
+		storeWord(A[4],TMP_1+32);
+		storeWord(A[5],TMP_1+36);
+		storeWord(A[6],TMP_1+40);
+		storeWord(A[7],TMP_1+44);
+		storeWord(D[4],TMP_1+48);
+		storeWord(D[5],TMP_1+52);
+		storeWord(D[6],TMP_1+56);
+		storeWord(D[7],TMP_1+60);
+	}
+	
+op stlcx_ind(b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+	predecode = {
+		off10 = off4 :: off6;
+	}
+	syntax = format("stlcx [%s]%d", b.syntax, off10)
+	image = format("%4b 100110 %6b %s XXXX 01001001 %0b", off4, off6, b.image, off10)
+	action = {
+		sign_ext10to32(off10, TMP_2);
+		TMP_1 = b + TMP_2;
+		storeWord(PCXI,TMP_1);
+		storeWord(A[11],TMP_1+4);
+		storeWord(A[2],TMP_1+8);
+		storeWord(A[3],TMP_1+12);
+		storeWord(D[0],TMP_1+16);
+		storeWord(D[1],TMP_1+20);
+		storeWord(D[2],TMP_1+24);
+		storeWord(D[3],TMP_1+28);
+		storeWord(A[4],TMP_1+32);
+		storeWord(A[5],TMP_1+36);
+		storeWord(A[6],TMP_1+40);
+		storeWord(A[7],TMP_1+44);
+		storeWord(D[4],TMP_1+48);
+		storeWord(D[5],TMP_1+52);
+		storeWord(D[6],TMP_1+56);
+		storeWord(D[7],TMP_1+60);
+	}
+	
+op stucx_abs(off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_3:card(4))
+	predecode = {
+		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
+	}
+	syntax = format("stucx %d",off18)
+	image = format("%4b 01 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	action = {
+		TMP_1 = off18<17..14> :: 00000000000000 :: off18<13..0>;
+		storeWord(PCXI,TMP_1);
+		storeWord(PSW,TMP_1+4);
+		storeWord(A[10],TMP_1+8);
+		storeWord(A[11],TMP_1+12);
+		storeWord(D[8],TMP_1+16);
+		storeWord(D[9],TMP_1+20);
+		storeWord(D[10],TMP_1+24);
+		storeWord(D[11],TMP_1+28);
+		storeWord(A[12],TMP_1+32);
+		storeWord(A[13],TMP_1+36);
+		storeWord(A[14],TMP_1+40);
+		storeWord(A[15],TMP_1+44);
+		storeWord(D[12],TMP_1+48);
+		storeWord(D[13],TMP_1+52);
+		storeWord(D[14],TMP_1+56);
+		storeWord(D[15],TMP_1+60);
+	}
+	
+op stucx_ind(b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+	predecode = {
+		off10 = off4 :: off6;
+	}
+	syntax = format("stucx [%s]%d", b.syntax, off10)
+	image = format("%4b 100111 %6b %s XXXX 01001001 %0b", off4, off6, b.image, off10)
+	action = {
+		sign_ext10to32(off10, TMP_2);
+		TMP_1 = b + TMP_2;
+		storeWord(PCXI,TMP_1);
+		storeWord(PSW,TMP_1+4);
+		storeWord(A[10],TMP_1+8);
+		storeWord(A[11],TMP_1+12);
+		storeWord(D[8],TMP_1+16);
+		storeWord(D[9],TMP_1+20);
+		storeWord(D[10],TMP_1+24);
+		storeWord(D[11],TMP_1+28);
+		storeWord(A[12],TMP_1+32);
+		storeWord(A[13],TMP_1+36);
+		storeWord(A[14],TMP_1+40);
+		storeWord(A[15],TMP_1+44);
+		storeWord(D[12],TMP_1+48);
+		storeWord(D[13],TMP_1+52);
+		storeWord(D[14],TMP_1+56);
+		storeWord(D[15],TMP_1+60);
+	}
+	
+
+	
+op rstv()
+	syntax = "rstv"
+	image = "XXXX 000000 XXXXXXXXXX XXXX 00101111"
+	action = {
+		VFLAG = 0;
+		SVFLAG = 0;
+		AVFLAG = 0;
+		SAVFLAG = 0;
+	}
+	
+op ldcx = ldlcx_abs |ldlcx_ind |lducx_abs|lducx_ind
+
+op ldlcx_abs (off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_3:card(4))
+	predecode = {
+		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
+	}
+	syntax = format("ldlcx %d",off18)
+	image = format("%4b 10 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	action = {
+		TMP_1 = off18<17..14> :: 0b00000000000000 :: off18<13..0>;
+		//loadWord(PCXI,TMP_1);
+		//loadWord(A[11],TMP_1+4);
+		loadWord(A[2],TMP_1+8);
+		loadWord(A[3],TMP_1+12);
+		loadWord(D[0],TMP_1+16);
+		loadWord(D[1],TMP_1+20);
+		loadWord(D[2],TMP_1+24);
+		loadWord(D[3],TMP_1+28);
+		loadWord(A[4],TMP_1+32);
+		loadWord(A[5],TMP_1+36);
+		loadWord(A[6],TMP_1+40);
+		loadWord(A[7],TMP_1+44);
+		loadWord(D[4],TMP_1+48);
+		loadWord(D[5],TMP_1+52);
+		loadWord(D[6],TMP_1+56);
+		loadWord(D[7],TMP_1+60);
+	}
+	
+op ldlcx_ind (b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+	predecode = {
+		off10 = off4 :: off6;
+	}
+	syntax = format("ldlcx [%s]%d",b.syntax,off10)
+	image = format("%4b 100100 %6b %s XXXX 01001001 %0b",off4,off6,b.image,off10)
+	action = {
+		sign_ext10to32(off10, TMP_2);
+		TMP_1 = b+TMP_2;
+		//loadWord(PCXI,TMP_1);
+		//loadWord(A[11],TMP_1+4);
+		loadWord(A[2],TMP_1+8);
+		loadWord(A[3],TMP_1+12);
+		loadWord(D[0],TMP_1+16);
+		loadWord(D[1],TMP_1+20);
+		loadWord(D[2],TMP_1+24);
+		loadWord(D[3],TMP_1+28);
+		loadWord(A[4],TMP_1+32);
+		loadWord(A[5],TMP_1+36);
+		loadWord(A[6],TMP_1+40);
+		loadWord(A[7],TMP_1+44);
+		loadWord(D[4],TMP_1+48);
+		loadWord(D[5],TMP_1+52);
+		loadWord(D[6],TMP_1+56);
+		loadWord(D[7],TMP_1+60);
+	}
+	
+op lducx_abs (off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_3:card(4))
+	predecode = {
+		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
+	}
+	syntax = format("lducx %d",off18)
+	image = format("%4b 11 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	action = {
+		TMP_1 = off18<17..14> :: 0b00000000000000 :: off18<13..0>;
+		loadWord(A[10],TMP_1+8);
+		loadWord(A[11],TMP_1+12);
+		loadWord(D[8],TMP_1+16);
+		loadWord(D[9],TMP_1+20);
+		loadWord(D[10],TMP_1+24);
+		loadWord(D[11],TMP_1+28);
+		loadWord(A[12],TMP_1+32);
+		loadWord(A[13],TMP_1+36);
+		loadWord(A[14],TMP_1+40);
+		loadWord(A[15],TMP_1+44);
+		loadWord(D[12],TMP_1+48);
+		loadWord(D[13],TMP_1+52);
+		loadWord(D[14],TMP_1+56);
+		loadWord(D[15],TMP_1+60);
+	}
+	
+op lducx_ind (b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+	predecode = {
+		off10 = off4 :: off6;
+	}
+	syntax = format("lducx [%s]%d",b.syntax,off10)
+	image = format("%4b 100101 %6b %s XXXX 01001001 %0b",off4,off6,b.image,off10)
+	action = {
+		sign_ext10to32(off10, TMP_2);
+		TMP_1 = b+TMP_2;
+		loadWord(A[10],TMP_1+8);
+		loadWord(A[11],TMP_1+12);
+		loadWord(D[8],TMP_1+16);
+		loadWord(D[9],TMP_1+20);
+		loadWord(D[10],TMP_1+24);
+		loadWord(D[11],TMP_1+28);
+		loadWord(A[12],TMP_1+32);
+		loadWord(A[13],TMP_1+36);
+		loadWord(A[14],TMP_1+40);
+		loadWord(A[15],TMP_1+44);
+		loadWord(D[12],TMP_1+48);
+		loadWord(D[13],TMP_1+52);
+		loadWord(D[14],TMP_1+56);
+		loadWord(D[15],TMP_1+60);
+	}
+	
+op bisr(const : const9)
+	syntax = format("bisr %s", const.syntax)
+	image = format("XXXX %7b %s XXXX %8b",0x00,const.image, 0xAD)
+	action = {
+		if(FCX==0) then error("TRAP"); endif;
+		TMP_1 = FCX; //tmp_FCX
+		indice = FCXS :: 0b000000 :: FCXO :: 0b000000;
+		loadWord(TMP_2,indice); //new_fcx
+		storeWord(PCXI,indice);
+		storeWord(A[11],indice+4);
+		storeWord(A[2],indice+8);
+		storeWord(A[3],indice+12);
+		storeWord(D[0],indice+16);
+		storeWord(D[1],indice+20);
+		storeWord(D[2],indice+24);
+		storeWord(D[3],indice+28);
+		storeWord(A[4],indice+32);
+		storeWord(A[5],indice+36);
+		storeWord(A[6],indice+40);
+		storeWord(A[7],indice+44);
+		storeWord(D[4],indice+48);
+		storeWord(D[5],indice+52);
+		storeWord(D[6],indice+56);
+		storeWord(D[7],indice+60);
+		PCPN = CCPN;
+		PIE = IE;
+		UL = 0;
+		PCXI<19..0> = FCX<19..0>;
+		FCX<19..0> = TMP_2<19..0>;
+		IE = 1;
+		CCPN = const<7..0>;
+		if(TMP_1 == LCX) then error("TRAP"); endif;
+	}
+	
+op rfe()
+	syntax = "rfe"
+	image = "XXXX 000111 XXXXXXXXXX XXXX 00001101"
+	action = {
+		if(PCXI<19..0> == 0) then error("TRAP"); endif;
+		if(UL == 0) then error("TRAP"); endif;
+		result_byte1 = 0;
+		if (CDC<6..6> == 0) then result_byte1<5..0> = CDC<5..0>;
+		else if (CDC<6..5> == 0b10) then result_byte1<4..0> = CDC<4..0>;
+		else if (CDC<6..4> == 0b110) then result_byte1<3..0> = CDC<3..0>;
+		else if (CDC<6..3> == 0b1110) then result_byte1<2..0> = CDC<2..0>;
+		else if (CDC<6..2> == 0b11110) then result_byte1<1..0> = CDC<1..0>;
+		else if (CDC<6..1> == 0b111110) then result_byte1<0..0> = CDC<0..0>;
+		endif; endif; endif; endif; endif; endif;
+		if((result_byte1==0) || CDC==0b0000000) then tmp1=1; else tmp1=0; endif;
+		if(tmp1==0 && CDEFLAG ==1) then error("TRAP"); endif;
+		PC = A[11]<31..1> :: 0b0;
+		IE = PIE;
+		CCPN = PCPN;
+		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
+		loadWord(TMP_1,indice); //new_pcxi
+		loadWord(PSW,indice+4);
+		loadWord(A[10],indice+8);
+		loadWord(A[11],indice+12);
+		loadWord(D[8],indice+16);
+		loadWord(D[9],indice+20);
+		loadWord(D[10],indice+24);
+		loadWord(D[11],indice+28);
+		loadWord(A[12],indice+32);
+		loadWord(A[13],indice+36);
+		loadWord(A[14],indice+40);
+		loadWord(A[15],indice+44);
+		loadWord(D[12],indice+48);
+		loadWord(D[13],indice+52);
+		loadWord(D[14],indice+56);
+		loadWord(D[15],indice+60);
+		storeWord(FCX,indice);
+		FCX<19..0> = PCXI<19..0>;
+		PCXI = TMP_1;
+	}	
+	
+op rfm()
+	syntax = "rfm"
+	image = "XXXX 000101 XXXXXXXXXX XXXX 00001101"
+	action = {
+		if(IO != 0x10) then error("TRAP"); endif;
+		if(DE==1) then 
+			PC = A[11]<31..1> :: 0b0;
+			IE = PIE;
+			CCPN = PCPN;
+			indice = DCX;
+			loadWord(PCXI,indice);
+			loadWord(PSW,indice+4);
+			loadWord(A[10],indice+8);
+			loadWord(A[11],indice+12);
+			DTA=0;
+		endif;
+	}
+	
+op rslcx()
+	syntax = "rslcx"
+	image = "XXXX 001001 XXXXXXXXXX XXXX 00001101"
+	action = {
+		if (PCXI<19..0>==0) then error("TRAP"); endif;
+		if (UL==1) then error("TRAP"); endif;
+		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
+		loadWord(TMP_1,indice);
+		loadWord(A[11],indice+4);
+		loadWord(A[2],indice+8);
+		loadWord(A[3],indice+12);
+		loadWord(D[0],indice+16);
+		loadWord(D[1],indice+20);
+		loadWord(D[2],indice+24);
+		loadWord(D[3],indice+28);
+		loadWord(A[4],indice+32);
+		loadWord(A[5],indice+36);
+		loadWord(A[6],indice+40);
+		loadWord(A[7],indice+44);
+		loadWord(D[4],indice+48);
+		loadWord(D[5],indice+52);
+		loadWord(D[6],indice+56);
+		loadWord(D[7],indice+60);
+		storeWord(FCX,indice);
+		FCX<19..0> = PCXI<19..0>;
+		PCXI = TMP_1;
+	}
+	
+op trapsv()
+	syntax = "trapsv"
+	image = "XXXX 010101 XXXXXXXXXX XXXX 00001101"
+	action = {
+		if (SVFLAG==1) then error("TRAP"); endif;
+	}
+	
+op trapv()
+	syntax = "trapv"
+	image = "XXXX 010100 XXXXXXXXXX XXXX 00001101"
+	action = {
+		if(VFLAG == 1) then error("TRAP"); endif;
+	}
+	

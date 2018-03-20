@@ -1,12 +1,37 @@
-op aluinst16 = arith16|logic16|bits16|mov16 | cadd16_
+op aluinst16 = arith16|logic16|bits16|mov16 | cadd16_ | sat16
 
 op arith16 = add16|sub16|cmov16|mul16
 
-op logic16 = and16|eq16|or16|xor16|not16
+op logic16 = and16|eq16|or16|xor16|not16|lt16
 
 op bits16 = sh_16|sha_16
 
+op lt16 = lt16_reg | lt16_const
 
+op lt16_const(a:reg_d , const : const4)
+	syntax = format("lt d15, %s, %s", a.syntax, const.syntax)
+	image = format("%s %s %8b", const.image, a.image, 0xFA)
+	action = {
+		if(a<coerce(int(32),const)) then
+			tmp0 = 1;
+		else
+			tmp0 = 0;
+		endif;
+		D[15]=coerce(card(32),tmp0);
+	}
+	
+op lt16_reg(a:reg_d , b:reg_d)
+	syntax = format("lt d15, %s, %s", a.syntax, b.syntax)
+	image = format("%s %s %8b", b.image, a.image, 0x7A)
+	action = {
+		if(a<b) then
+			tmp0 = 1;
+		else
+			tmp0 = 0;
+		endif;
+		D[15]=coerce(card(32),tmp0);
+	}
+	
 // cadd instructions
 op cadd16_ = cadd16_n
 
@@ -20,7 +45,7 @@ op cadd16_n(a: reg_d, const4: int(4))
 	otawa_sem = "SETI(T1, 0); CMP(T1, D15, T1); IF(EQ, T1, 2); SETI(T1, S4(1)); ADD(D15, D15, T1); "
 
 // add instructions
-op add16 = add16_1|add16_2| add16_3|add16_4| add16_5|add16_6|add_a_16_reg|add_a_16_const|addsca|cadd16
+op add16 = add16_1|add16_2| add16_3|add16_4| add16_5|add16_6|add_a_16_reg|add_a_16_const|addsca|cadd16|adds16
 
 op add16_1 (a:reg_d, b:reg_d)
    syntax = format("add %s,%s",a.syntax,b.syntax)
@@ -31,7 +56,7 @@ op add16_1 (a:reg_d, b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); ADD(D(0), D(0), D(1));"
 
@@ -45,7 +70,7 @@ op add16_2 (a:reg_d, const:const4)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, S4(1)); ADD(D(0), D(0), T1);"
 
@@ -58,7 +83,7 @@ op add16_3 (a:reg_d, b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		D[15] = result64<0..31>;
+		D[15] = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); ADD(D15, D(0), D(1));"
 
@@ -72,7 +97,7 @@ op add16_4 (a:reg_d,const:const4)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		D[15] = result64<0..31>;
+		D[15] = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, S4(1)); ADD(D15, D(0), T1);"
 
@@ -85,7 +110,7 @@ op add16_5 (a:reg_d,b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); ADD(D(0), D15, D(1));"
 
@@ -99,7 +124,7 @@ op add16_6 (a:reg_d,const:const4)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, S4(1)); ADD(D(0), D15, T1);"
 
@@ -143,9 +168,21 @@ op cadd16 (a:reg_d,const:const4)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, 0); CMP(T1, D15, T1); IF(EQ, T1, 2); SETI(T1, S4(1)); ADD(A(0), A(0), T1);"
+
+op adds16 (a : reg_d, b : reg_d)
+		syntax = format("adds %s,%s",a.syntax,b.syntax)
+		image = format("%s%s%8b",b.image,a.image,0x22)
+		action = {
+			result64 = coerce(int(64),a)+coerce(int(64),b);
+			overflow(result64);
+			stickyOverflow();
+			advancedOverflow(result64);
+			stickyAdvancedOverflow();
+			ssov(result64,32,a);
+		}
 
 op mul16 (a:reg_d,b:reg_d)
    syntax = format("mul %s,%s",a.syntax,b.syntax)
@@ -156,7 +193,7 @@ op mul16 (a:reg_d,b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -165,10 +202,10 @@ op and16 = and16_1|and16_2
 op and16_1 (a:reg_d,b:reg_d)
    syntax = format("and %s,%s",a.syntax,b.syntax)
    image = format("%s%s00100110",b.image,a.image)
-   action = 	{ 
+   action = { 
 		a = a&b;
 		}
-	otawa_sem = "SCRATCH(D(0));"
+	
 
 op and16_2 (const:const8)
    syntax = format("and d15,%s",const.syntax)
@@ -208,7 +245,7 @@ op eq16_1 (a:reg_d,b:reg_d)
 		}
 	otawa_sem = "SCRATCH(D15);"
 
-op mov16 = mov_16_1|mov_16_2|mov_16_3|mov_a_16_4|mov_a_16_5|mov_aa_16|mov_d_16
+op mov16 = mov_16_1|mov_16_2|mov_16_3|mov_16_4|mov_a_16_4|mov_a_16_5|mov_aa_16|mov_d_16
 
 op mov_16_1(a:reg_d,b:reg_d)
    syntax = format("mov %s,%s",a.syntax,b.syntax)
@@ -218,30 +255,33 @@ op mov_16_1(a:reg_d,b:reg_d)
 		}
 	otawa_sem = "SET(D(0), D(1));"
 
-op mov_16_2(a:reg_d,const4:card(4))
-   syntax = format("mov %s,%d",a.syntax,const4)
-   image = format("%4b%s10000010",const4,a.image)
+op mov_16_2(a:reg_d,const:const4)
+   syntax = format("mov %s,%s",a.syntax,const.syntax)
+   image = format("%s%s10000010",const.image,a.image)
    action = 	{
-		TMP_1<0..3> = const4<0..3>;
-		if (TMP_1<3..3> ==1)
-		then
-			TMP_1<4..31> = 0xFFFFFFF;
-		else
-			TMP_1<4..31> = 0x0000000;
-		endif;
+		sign_ext4to32(const, TMP_1);
 		a = TMP_1;
 		}
 	otawa_sem = "SETI(D(0), S4(1));"
 
-op mov_16_3(const8:card(8))
-   syntax = format("mov d15,%d",const8)
-   image = format("%8b11011010",const8)
+op mov_16_3(const:const8)
+   syntax = format("mov d15, %s",const.syntax)
+   image = format("%s11011010",const.image)
    action = 	{
-		TMP_1<0..7> = const8<0..7>;
-		TMP_1<8..31> = 0x000000;
+		TMP_1<7..0> = const<7..0>;
+		TMP_1<31..8> = 0x000000;
 		D[15] = TMP_1;
 		}
 	otawa_sem = "SETI(D15, U8(0));"
+	
+op mov_16_4(a:reg_e,const:const4)
+	syntax = format("mov %s,%s",a.syntax,const.syntax)
+	image = format("%s %s %8b",const.image, a.image, 0xD2)
+	action = {
+		sign_ext4to32(const, TMP_1);
+		sign_ext32to64(TMP_1, TMP64_1);
+		a=TMP64_1;		
+	}
 
 op mov_a_16_4(a:reg_a,b:reg_d)
    syntax = format("mov.a %s,%s",a.syntax,b.syntax)
@@ -255,8 +295,8 @@ op mov_a_16_5(a:reg_a, const4:card(4))
    syntax = format("mov.a %s,%d",a.syntax,const4)
    image = format("%4b%s10100000",const4,a.image)
    action = 	{
-		TMP_1<0..3> = const4<0..3>;
-		TMP_1<4..31> = 0x0000000;
+		TMP_1<3..0> = const4<3..0>;
+		TMP_1<31..4> = 0x0000000;
 		a = TMP_1;
 		}
 	otawa_sem = "SETI(D(0), S4(1)); "
@@ -296,44 +336,35 @@ op or_16_2(const:const8)
 		}
 	otawa_sem = "SCRATCH(D15);"
 
-op sh_16(a:reg_d, const4:card(4), const:int(32))
-   predecode = 	{
-		const<0..3> = const4<0..3>;
-		if (const<3..3> == 1)
-		then
-			const<4..31> = 0xFFFFFFF;
-		else
-			const<4..31> = 0x0000000;
-		endif;
-		}
-   syntax = format("sh %s,#%d",a.syntax,const)
-   image = format("%4b%s00000110%0b",const4,a.image,const)
+op sh_16(a:reg_d, const:const4)
+   syntax = format("sh %s, %s",a.syntax,const.syntax)
+   image = format("%4b%s00000110",const.image,a.image)
    action = 	{
-		if (coerce(int(32),const) >= 0)
+   	sign_ext4to32(const, TMP_1);
+		if (coerce(int(32),TMP_1) >= 0)
 		then
-			a = a<<const;
+			a = a<<TMP_1;
 		else
-			const = -const;
-			a = a>>const;
+			a = a>>(-TMP_1);
 		endif;
 		}
 	otawa_sem = "SETI(T1, 0); SETI(T2, S4(1)); CMP(T1, T2, T1); IF(GE, T1, 1); SHL(D(0), D(0), T2); IF(LT, T1, 3); SETI(T1, 0); SUB(T2, T1, T2); SHR(D(0), D(0), T2);"
 
 op sha_16(a:reg_d, const:const4)
-   syntax = format("sha %s,#%s",a.syntax,const.syntax)
+   syntax = format("sha %s,%s",a.syntax,const.syntax)
    image = format("%s%s10000110",const.image,a.image)
    action = 	{
-		TMP_4 = coerce(int(32),const<0..3>);
+		TMP_4 = coerce(int(32),const<3..0>);
 		if (TMP_4 >= 0)
 		then
-			TMP_3 = 32-TMP_4<0..4>;
-			if ( (TMP_4<0..4>) && (a<TMP_3..31> != 0) )
+			TMP_3 = 32-TMP_4<4..0>;
+			if ( (TMP_4<4..0>) && (a<31..TMP_3> != 0) )
 			then
 				CFLAG = 1;
 			else
 				CFLAG = 0;
 			endif;
-			result64 = coerce(int(64),a)<<(TMP_4<0..4>);
+			result64 = coerce(int(64),a)<<(TMP_4<4..0>);
 		else
 			TMP_1 = -TMP_4;
 			if(a<31..31>)
@@ -354,7 +385,7 @@ op sha_16(a:reg_d, const:const4)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -369,7 +400,7 @@ op rsub_16 (a:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, 0); SUB(D(0),T1, D(0));"
 
@@ -382,7 +413,7 @@ op sub_16_1 (a:reg_d, b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SUB(D(0), D(0), D(1));"
 
@@ -395,7 +426,7 @@ op sub_16_2 (a:reg_d, b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		D[15] = result64<0..31>;
+		D[15] = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SUB(D15, D(0), D(1));"
 
@@ -408,7 +439,7 @@ op sub_16_3 (a:reg_d, b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		a = result64<0..31>;
+		a = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SUB(D(0), D15, D(1));"
 
@@ -422,7 +453,7 @@ op sub_a_16(const:const8)
 	otawa_sem = "SETI(T1, U8(0)); SUB(A10, A10, T1);"
 
 op subs16 (a:reg_d,b:reg_d)
-   syntax = format("subs %s,%s",a.syntax,b.syntax)
+   syntax = format("subs %s, %s",a.syntax,b.syntax)
    image = format("%s%s01100010",b.image,a.image)
    action = 	{ 
 		result64 = coerce(int(64),a)-coerce(int(64),b);
@@ -430,8 +461,7 @@ op subs16 (a:reg_d,b:reg_d)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		TMP_1 = result64<0..31>;
-		ssov(TMP_1,32,a);
+		ssov(result64,32,a);
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -451,10 +481,10 @@ op not16 (a:reg_d)
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
-op cmov16 = cmov16_reg|cmov16_const|cmovn16_const
+op cmov16 = cmov16_reg|cmov16_const|cmovn16_const|cmovn16_reg
 
 op cmov16_reg (a:reg_d,b:reg_d)
-   syntax = format("cmov %s,d15,%s",a.syntax,b.syntax)
+   syntax = format("cmov %s, d15, %s",a.syntax,b.syntax)
    image = format("%s%s00101010",b.image,a.image)
    action = 	{ 
 		if (D[15] != 0)
@@ -465,7 +495,7 @@ op cmov16_reg (a:reg_d,b:reg_d)
 	otawa_sem = "SETI(T1, 0); CMP(T1, D15, T1); IF(NE, T1, 1); SET(D(0), D(1));"
 
 op cmov16_const (a:reg_d,const:const4)
-   syntax = format("cmov %s,d15,%s",a.syntax,const.syntax)
+   syntax = format("cmov %s, d15, %s",a.syntax,const.syntax)
    image = format("%s%s10101010",const.image,a.image)
    action = 	{ 
 		if (D[15] != 0)
@@ -477,7 +507,7 @@ op cmov16_const (a:reg_d,const:const4)
 	otawa_sem = "SETI(T1, 0); CMP(T1, D15, T1); IF(NE, T1, 1); SETI(D(0), S4(1));"
 	
 op cmovn16_const (a:reg_d,const:const4)
-   syntax = format("cmovn %s,d15,%s",a.syntax,const.syntax)
+   syntax = format("cmovn %s, d15, %s",a.syntax,const.syntax)
    image = format("%s%s11101010",const.image,a.image)
    action = 	{ 
 		if (D[15] == 0)
@@ -488,3 +518,68 @@ op cmovn16_const (a:reg_d,const:const4)
 		}
 	otawa_sem = "SETI(T1, 0); CMP(T1, D15, T1); IF(EQ, T1, 1); SETI(D(0), S4(1));"
 	
+op cmovn16_reg(a:reg_d,b:reg_d)
+	syntax = format("cmovn %s, d15, %s",a.syntax,b.syntax)
+	image = format("%s %s %8b",b.image, a.image, 0x6A)
+	action = {
+		if (D[15] == 0)
+		then
+			a = b;
+		endif;
+	}
+	
+op sat16 = sat16_b | sat16_bu | sat16_h | sat16_hu
+
+op sat16_b(a:reg_d)
+	syntax = format("sat.b %s", a.syntax)
+	image = format("0000 %s %8b", a.image, 0x32)
+	action = {
+		if(coerce(int(32),a)<-0x80) then 
+			TMP_1 = -0x80;
+		else
+			TMP_1 = a;
+		endif;
+		if (coerce(int(32),TMP_1) > 0x7F) then
+			a = 0x7F;
+		else
+			a = TMP_1;
+		endif;
+	}
+	
+op sat16_bu(a:reg_d)
+	syntax = format("sat.bu %s", a.syntax)
+	image = format("0001 %s %8b", a.image, 0x32)
+	action = {
+		if (coerce(card(32),a) > 0xFF) then
+			a = 0xFF;
+		else
+			a = a;
+		endif;
+	}
+	
+op sat16_h(a:reg_d)
+	syntax = format("sat.h %s", a.syntax)
+	image = format("0010 %s %8b", a.image, 0x32)
+	action = {
+		if(coerce(int(32),a)<-0x8000) then 
+			TMP_1 = -0x8000;
+		else
+			TMP_1 = a;
+		endif;
+		if (coerce(int(32),TMP_1) > 0x7FFF) then
+			a = 0x7FFF;
+		else
+			a = TMP_1;
+		endif;
+	}
+	
+op sat16_hu(a:reg_d)
+	syntax = format("sat.hu %s", a.syntax)
+	image = format("0011 %s %8b", a.image, 0x32)
+	action = {
+		if (coerce(card(32),a) > 0xFFFF) then
+			a = 0xFFFF;
+		else
+			a = a;
+		endif;
+	}

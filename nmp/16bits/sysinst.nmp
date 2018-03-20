@@ -1,4 +1,4 @@
-op sysinst16 = debug16 | nop_16
+op sysinst16 = debug16 | nop_16 | bisr16 | rfe16
 
 
 op debug16 (foo:card(4))
@@ -20,8 +20,83 @@ op debug16 (foo:card(4))
 		endif;
 		}
 
-op nop_16 (foo:card(4))
+op nop_16 ()
    syntax = "nop"
-   image = format("0000%4b00000000",foo)
+   image = "0000XXXX00000000"
    action = 	{
 		}
+		
+op bisr16(const:const8)
+	syntax = format("bisr %s",const.syntax)
+	image = format("%s %8b",const.image, 0xE0)
+	action = {
+		if(FCX==0) then error("TRAP"); endif;
+		TMP_1 = FCX; //tmp_FCX
+		indice = FCXS :: 0b000000 :: FCXO :: 0b000000;
+		loadWord(TMP_2,indice); //new_fcx
+		storeWord(PCXI,indice);
+		storeWord(A[11],indice+4);
+		storeWord(A[2],indice+8);
+		storeWord(A[3],indice+12);
+		storeWord(D[0],indice+16);
+		storeWord(D[1],indice+20);
+		storeWord(D[2],indice+24);
+		storeWord(D[3],indice+28);
+		storeWord(A[4],indice+32);
+		storeWord(A[5],indice+36);
+		storeWord(A[6],indice+40);
+		storeWord(A[7],indice+44);
+		storeWord(D[4],indice+48);
+		storeWord(D[5],indice+52);
+		storeWord(D[6],indice+56);
+		storeWord(D[7],indice+60);
+		PCPN = CCPN;
+		PIE = IE;
+		UL = 0;
+		PCXI<19..0> = FCX<19..0>;
+		FCX<19..0> = TMP_2<19..0>;
+		IE = 1;
+		CCPN = const<7..0>;
+		if(TMP_1 == LCX) then error("TRAP"); endif;
+	}
+	
+op rfe16()
+	syntax = "rfe"
+	image = "1000 XXXX 00000000"
+	action = {
+		if(PCXI<19..0> == 0) then error("TRAP"); endif;
+		if(UL == 0) then error("TRAP"); endif;
+		result_byte1 = 0;
+		if (CDC<6..6> == 0) then result_byte1<5..0> = CDC<5..0>;
+		else if (CDC<6..5> == 0b10) then result_byte1<4..0> = CDC<4..0>;
+		else if (CDC<6..4> == 0b110) then result_byte1<3..0> = CDC<3..0>;
+		else if (CDC<6..3> == 0b1110) then result_byte1<2..0> = CDC<2..0>;
+		else if (CDC<6..2> == 0b11110) then result_byte1<1..0> = CDC<1..0>;
+		else if (CDC<6..1> == 0b111110) then result_byte1<0..0> = CDC<0..0>;
+		endif; endif; endif; endif; endif; endif;
+		if((result_byte1==0) || CDC==0b0000000) then tmp1=1; else tmp1=0; endif;
+		if(tmp1==0 && CDEFLAG ==1) then error("TRAP"); endif;
+		PC = A[11]<31..1> :: 0b0;
+		IE = PIE;
+		CCPN = PCPN;
+		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
+		loadWord(TMP_1,indice); //new_pcxi
+		loadWord(PSW,indice+4);
+		loadWord(A[10],indice+8);
+		loadWord(A[11],indice+12);
+		loadWord(D[8],indice+16);
+		loadWord(D[9],indice+20);
+		loadWord(D[10],indice+24);
+		loadWord(D[11],indice+28);
+		loadWord(A[12],indice+32);
+		loadWord(A[13],indice+36);
+		loadWord(A[14],indice+40);
+		loadWord(A[15],indice+44);
+		loadWord(D[12],indice+48);
+		loadWord(D[13],indice+52);
+		loadWord(D[14],indice+56);
+		loadWord(D[15],indice+60);
+		storeWord(FCX,indice);
+		FCX<19..0> = PCXI<19..0>;
+		PCXI = TMP_1;
+	}	
