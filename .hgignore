@@ -6,3 +6,4 @@ sim
 src
 tricore.irg
 tricore.nml
+nmp/32bits/confidential.nmp

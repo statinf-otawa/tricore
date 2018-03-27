@@ -49,7 +49,7 @@ $(ARCH).nml: $(NMP)
 	(cd nmp; pwd; ../$(GLISS_PREFIX)/gep/gliss-nmp2nml.pl $(MAIN_NMP) ../$@)
 
 $(ARCH).irg: $(ARCH).nml
-	$(GLISS_PREFIX)/irg/mkirg $< $@
+	$(GLISS_PREFIX)/irg/mkirg -compat $< $@
 
 src include: $(ARCH).irg
 	$(GLISS_PREFIX)/gep/gep $(GFLAGS) $< -S
