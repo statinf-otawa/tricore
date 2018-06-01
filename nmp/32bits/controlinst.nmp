@@ -278,7 +278,7 @@ op jge_const4 (disp:int(15),a:reg_d,const4:card(4))
 
 
 op jge_u (disp:int(15),a:reg_d,b:reg_d)
-   syntax = format ("jge.u %s, %s, %08x", a.syntax, b.syntax,__IADDR+coerce(int(32),disp<15..0>)*2)
+   syntax = format ("jge.u %s, %s, %08x", a.syntax, b.syntax,__IADDR+coerce(int(32),disp)*2)
    image = format ("1%15b%s%s01111111",disp,b.image,a.image)
    action = 	{ 
 	  	if (coerce(card(32),a)>=coerce(card(32),b))
