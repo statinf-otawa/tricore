@@ -517,8 +517,9 @@ macro sign_ext15to32(const, temp) =\
         endif
 
 macro zero_ext32(const, temp, n) =\
-	temp = 0x00000000;\
-	temp<0..(n-1)> = const
+	temp<0..(n-1)> = const<0..(n-1)>;\
+	temp<n..31> = 0
+	
 	
 
 macro ssov(x, y, res) =\

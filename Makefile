@@ -4,8 +4,8 @@
 GLISS_PREFIX=../gliss2
 WITH_DISASM=1	# comment it to prevent disassembler building
 WITH_SIM=1		# comment it to prevent simulator building
-#WITH_DYNLIB=1	# uncomment to link with a shared object
-
+WITH_DYNLIB=1	# uncomment to link with a shared object
+TRICORE_MEM_SPY=1
 MEMORY=vfast_mem
 #LOADER=old_elf
 

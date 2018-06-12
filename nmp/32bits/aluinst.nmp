@@ -3161,7 +3161,9 @@ op andn_const9 (c:reg_d,a:reg_d,const:const9)
    syntax = format("andn %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format("%s0001110%s%s10001111",c.image,const.image,a.image)
    action = 	{
-		zero_ext32(const, TMP_1,9);
+		//zero_ext32(const, TMP_1,9);
+		TMP_1<0..8> = const<0..8>;
+		TMP_1<9..31> = 0;
 		c = a&(~TMP_1);
 		}
 	otawa_sem = "SCRATCH(D(0));"
@@ -3997,12 +3999,7 @@ op insert_const4_pos (c:reg_d,a:reg_d,const:const4,width:width5,pos1:pos)
 		TMP_3 = pos1;
 		TMP_4 = (2**TMP_2)-1;
 		TMP_4 = TMP_4 << TMP_3;
-		if ( (a & (~TMP_4)) | ( (TMP_1<<TMP_3) & TMP_4))
-		then
-			c = 1;
-		else
-			c = 0;
-		endif;
+		c = (a & (~TMP_4)) | ( (TMP_1<<TMP_3) & TMP_4);
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
@@ -4119,7 +4116,8 @@ op movh_a (c:reg_a, const:card(16))
   syntax = format("movh.a %s,#%d",c.syntax,const)
   image = format("%s%16bXXXX%8b",c.image,const,0x91)
   action = 	{
-		c = const<15..0>::0x0000;
+		c<31..16> = const<15..0>;
+		c<15..0> = 0;
 		}
 	
 

@@ -18,7 +18,7 @@ op mtcr (a:reg_d,const:card(16),foo:card(4))
    syntax = format("mtcr %d,%s",const,a.syntax)
    image = format("%4b%16b%s11001101",foo,const,a.image)
    action = 	{
-		if (IO == 0b10)
+		if (IO == 0b01) // IO is PSW<10..11>, hence the bit order should be 01
 		then
 			switch (const) {
 			case (0xFE00) : PCXI = a;
@@ -28,7 +28,7 @@ op mtcr (a:reg_d,const:card(16),foo:card(4))
 					SVFLAG = a<29..29>;
 					AVFLAG = a<28..28>;
 					SAVFLAG = a<27..27>;
-			case (0xFE08) : PC = a;
+			case (0xFE08) : NPC = a;
 			case (0xFE14) : SYSCON = a;
 			case (0xFE18) : CPU_ID = a;
 			case (0xFE28) : ISP = a;
@@ -416,7 +416,7 @@ op rfe()
 		endif; endif; endif; endif; endif; endif;
 		if((result_byte1==0) || CDC==0b0000000) then tmp1=1; else tmp1=0; endif;
 		if(tmp1==0 && CDEFLAG ==1) then error("TRAP"); endif;
-		PC = A[11]<31..1> :: 0b0;
+		NPC = A[11]<31..1> :: 0b0;
 		IE = PIE;
 		CCPN = PCPN;
 		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
@@ -447,7 +447,7 @@ op rfm()
 	action = {
 		if(IO != 0x10) then error("TRAP"); endif;
 		if(DE==1) then 
-			PC = A[11]<31..1> :: 0b0;
+			NPC = A[11]<31..1> :: 0b0;
 			IE = PIE;
 			CCPN = PCPN;
 			indice = DCX;

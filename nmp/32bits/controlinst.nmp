@@ -6,8 +6,8 @@ op jli(a : reg_a)
 	image = format("XXXX %8b XX XX XXXX %s %8b",0x02,a.image,0x2D)
 	action = {
 		A[11] = PC+4;
-		PC<31..0> = a<31..0>;
- 		PC<0..0> = 0;
+		NPC<31..0> = a<31..0>;
+ 		NPC<0..0> = 0;
 	}	
 
 
@@ -20,7 +20,7 @@ op jla(disp_low : card(16), disp_high : card(8), const : int(24))
  	image = format("%16b %8b 1101 1101 %0b",disp_low,disp_high,const)
  	action = {
  		A[11] = PC+4;
- 		PC = const<23..20>::0b0000000::const<19..0>::0b0;
+ 		NPC = const<23..20>::0b0000000::const<19..0>::0b0;
  	}
 
 
@@ -31,7 +31,7 @@ op jl(disp: int(24), foo1: card(16), foo2: card(8))
  	}
  	syntax		= format("jl %08x", __IADDR + (coerce(int(32),disp)*2))
  	image		= format("%16b%8b01011101%0b", foo1, foo2, disp)
- 	action		= { A[11] = PC+4; PC = PC + coerce(int(32),disp) * 2; }
+ 	action		= { A[11] = PC+4; NPC = PC + coerce(int(32),disp) * 2; }
  	otawa_sem	= "SETI(A11, IADDR + 4); SETI(T1, IADDR + 2 * ((S8(2) << 16) + U16(1))); BRANCH(T1);"
  
 
@@ -78,7 +78,7 @@ op call(const:int(24), d1:card(16), d2:card(8))
 		UL = 1;
 		PCXI<0..19> = FCX<0..19>;
 		FCX<0..19> = TMP_4<0..19>;
-		PC = PC+coerce(int(32),2*const);
+		NPC = PC+coerce(int(32),2*const);
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
@@ -131,7 +131,7 @@ op calla(const:int(24), d1:card(16), d2:card(8))
 		UL = 1;
 		PCXI<0..19> = FCX<0..19>;
 		FCX<0..19> = TMP_4<0..19>;
-		PC = const<23..20>::0b0000000::const<19..0>::0b0;
+		NPC = const<23..20>::0b0000000::const<19..0>::0b0;
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
@@ -180,7 +180,7 @@ op calli(a:reg_a, foo1:card(4), foo2:card(8))
 		UL = 1;
 		PCXI<0..19> = FCX<0..19>;
 		FCX<0..19> = TMP_4<0..19>;
-		PC = a<31..1>::0b0;
+		NPC = a<31..1>::0b0;
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
@@ -198,7 +198,7 @@ op j (const:int(24), d1:card(16), d2:card(8))
    syntax = format("j %08x", __IADDR+coerce(int(32),const)*2)
    image = format("%16b%8b00011101%0b",d1,d2,const)
    action = 	{ 
-		PC = PC+coerce(int(32),const);
+		NPC = PC+coerce(int(32),const)*2;
    	}
    	otawa_sem = "SETI(T1, IADDR + 2 * ((S8(2) << 16) + U16(1))); BRANCH(T1);"
 
@@ -211,7 +211,7 @@ op ja (const:int(24), d1:card(16), d2:card(8))
    syntax = format("ja %08x", const<23..20>::0b0000000::const<19..0>::0b0)
    image = format("%16b%8b10011101%0b",d1,d2,const)
    action = 	{
-			PC = const<23..20>::0b0000000::const<19..0>::0b0;
+			NPC = const<23..20>::0b0000000::const<19..0>::0b0;
    	}
    	otawa_sem = "SETI(T1, ((U8(2) >> 4) << 28) + ((((U8(2) & 0x0f) << 16) + U16(1)) << 1)); BRANCH(T1);"
 
@@ -225,7 +225,7 @@ op jeq_a(a:reg_a , b:reg_a , disp:int(15))
 	image = format("0 %15b %s %s %8b", disp, b.image, a.image, 0x7D)
 	action = {
 		sign_ext15to32(disp, TMP_2);
-		if (a==b) then PC = PC+(TMP_2*2); endif;
+		if (a==b) then NPC = PC+(TMP_2*2); endif;
 	}
 
 
@@ -235,7 +235,7 @@ op jeq_reg_const(a:reg_d, const:const4, disp:int(15))
 	action = {
 		sign_ext4to32(const, TMP_1);
 		if (a==TMP_1) then
-			PC=PC+coerce(int(32),disp)*2;
+			NPC=PC+coerce(int(32),disp)*2;
 		endif;
 	}
 	
@@ -245,7 +245,7 @@ op jeq_reg_reg(a:reg_d, b:reg_d, disp:int(15))
 	image = format("0 %15b %s %s %8b", disp, b.image, a.image, 0x5F)
 	action = {
 		if (a==b) then
-			PC=PC+coerce(int(32),disp)*2;
+			NPC=PC+coerce(int(32),disp)*2;
 		endif;
 	}
 
@@ -259,7 +259,7 @@ op jge_reg (disp:int(15),a:reg_d,b:reg_d)
    image = format ("0%15b%s%s01111111",disp,b.image,a.image)
    action = 	{ 
 	  	if (a>=b) then 
-	     		PC = PC+coerce(int(32),disp)*2; 
+	     		NPC = PC+coerce(int(32),disp)*2; 
 	  	endif;
    		}
   	otawa_sem = "CMP(T1, D(2), D(3)); IF(GE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -271,7 +271,7 @@ op jge_const4 (disp:int(15),a:reg_d,const4:card(4))
     action =  	{ 
 	   	if (a>=coerce(int(32),const4))
 		then 
-	      		PC = PC+coerce(int(32),disp)*2; 
+	      		NPC = PC+coerce(int(32),disp)*2; 
 	   	endif; 
    		}
   	otawa_sem = "SETI(T1, S4(3)); CMP(T1, D(2), T1); IF(GE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -283,7 +283,7 @@ op jge_u (disp:int(15),a:reg_d,b:reg_d)
    action = 	{ 
 	  	if (coerce(card(32),a)>=coerce(card(32),b))
 		then 
-	     		PC = PC+coerce(int(32),disp)*2; 
+	     		NPC = PC+coerce(int(32),disp)*2; 
 	  	endif;
    		}
   	otawa_sem = "CMP(T1, D(2), D(3)); IF(UGE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -295,7 +295,7 @@ op jge_u_const4 (disp:int(15),a:reg_d,const4:card(4))
     action =  	{ 
 	   	if (a>=coerce(card(32),const4))
 		then 
-	      		PC = PC+coerce(int(32),disp)*2; 
+	      		NPC = PC+coerce(int(32),disp)*2; 
 	   	endif;
     		}
   	otawa_sem = "SETI(T1, S4(3)); CMP(T1, D(2), T1); IF(UGE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -304,7 +304,7 @@ op ji (a:reg_a, foo1:card(4), foo2:card(8))
    syntax = format ("ji %s", a.syntax)
    image = format ("%4b00000011%8b%s00101101",foo1,foo2,a.image)
    action = 	{
-		PC = a<31..1>::0b0;
+		NPC = a<31..1>::0b0;
 		}
 	otawa_sem = "SETI(T2, 1); SHL(T1, A(0), T2); BRANCH(T1);"
 
@@ -319,7 +319,7 @@ op jlt_reg (disp:int(15),a:reg_d,b:reg_d)
    action = 	{ 
 	  	if (a<b)
 		then 
-	     		PC = PC+coerce(int(32),disp)*2; 
+	     		NPC = PC+coerce(int(32),disp)*2; 
 	  	endif;
    		}
   	otawa_sem = "CMP(T1, D(2), D(3)); IF(LT, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -331,7 +331,7 @@ op jlt_const4 (disp:int(15),a:reg_d,const4:int(4))
     action =  	{ 
 	   	if (a<coerce(int(32),const4))
 		then 
-	      		PC = PC + coerce(int(32),disp)*2; 
+	      		NPC = PC + coerce(int(32),disp)*2; 
 	   	endif; 
     		}
   	otawa_sem = "SETI(T1, S4(3)); CMP(T1, D(2), T1); IF(LT, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -343,7 +343,7 @@ op jlt_u (disp:int(15),a:reg_d,b:reg_d)
    action = 	{ 
 	  	if (a<b)
 		then 
-	     		PC = PC+coerce(int(32),disp)*2; 
+	     		NPC = PC+coerce(int(32),disp)*2; 
 	  	endif;
    		}
   	otawa_sem = "CMP(T1, D(2), D(3)); IF(ULT, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -355,7 +355,7 @@ op jlt_u_const4 (disp:int(15),a:reg_d,const4:card(4))
     action =  	{ 
 	   	if (a<coerce(card(32),const4))
 		then 
-	     		PC = PC+coerce(int(32),disp)*2; 
+	     		NPC = PC+coerce(int(32),disp)*2; 
 	   	endif; 
    		}
   	otawa_sem = "SETI(T1, S4(3)); CMP(T1, D(2), T1); IF(ULT, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -371,7 +371,7 @@ op jne_reg (disp:int(15),a:reg_d,b:reg_d)
    action = 	{ 
 	  if (a!=b)
 		then 
-	     		PC = PC+coerce(int(32),disp)*2; 
+	     		NPC = PC+coerce(int(32),disp)*2; 
 	  endif;
    	}
   	otawa_sem = "CMP(T1, D(2), D(3)); IF(NE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -383,7 +383,7 @@ op jne_const4 (disp:int(15),a:reg_d,const4:int(4))
     action =  	{ 
 	   	if (a!=coerce(int(32),const4))
 			then 
-	     	PC = PC + coerce(int(32),disp)*2; 
+	     	NPC = PC + coerce(int(32),disp)*2; 
 	   	endif; 
     }
   	
@@ -395,7 +395,7 @@ op jne_a (disp:int(15),a:reg_a,b:reg_a)
    action = 	{ 
 	  	if (a!=b)
 		then 
-	     		PC = PC + coerce(int(32),disp)*2; 
+	     		NPC = PC + coerce(int(32),disp)*2; 
 	  	endif;
    		}
   	otawa_sem = "CMP(T1, A(2), A(3)); IF(NE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -410,7 +410,7 @@ op jned_reg (disp:int(15), a:reg_d, b:reg_d)
    image = format ("1%15b%s%s00011111",disp,b.image,a.image)
    action = { 
 	  if (a==b)then 
-	     PC = PC + coerce(int(32),disp)*2; 
+	     NPC = PC + coerce(int(32),disp)*2; 
 	  endif; 
 	  a=a-1;
    }
@@ -423,7 +423,7 @@ op jned_const4 (disp:int(15),a:reg_d,const4:int(4))
     action =  	{
 	   	if (a!=coerce(int(32),const4))
 		then 
-	      		PC = PC + coerce(int(32),disp)*2; 
+	      		NPC = PC + coerce(int(32),disp)*2; 
 	   	endif;
 	   	a=a-1;
    		}
@@ -439,7 +439,7 @@ op jnei_reg (disp:int(15),a:reg_d,b:reg_d)
    image = format ("0%15b%s%s00011111",disp,b.image,a.image)
    action = { 
 	  if (a==b)then 
-	     PC = PC + coerce(int(32),disp)*2; 
+	     NPC = PC + coerce(int(32),disp)*2; 
 	  endif; 
 	  a=a+1;
    }
@@ -451,7 +451,7 @@ op jnei_const4 (disp:int(15),a:reg_d,const4:int(4))
     image = format ("0%15b%4b%s10011111",disp,const4,a.image)
     action =  { 
 	   if (a!=coerce(int(32),const4))then 
-	      PC = PC + coerce(int(32),disp)*2; 
+	      NPC = PC + coerce(int(32),disp)*2; 
 	   endif; 
 	   a=a+1;
     }
@@ -468,7 +468,7 @@ op jnz_a (disp:int(15), a:reg_a, foo:card(4))
    action = 	{
 	  	if (a!=0) 
 		then 
-	     		PC = PC + coerce(int(32),disp)*2; 
+	     		NPC = PC + coerce(int(32),disp)*2; 
 	  	endif;
    		}
   	otawa_sem = "SETI(T1, 0); CMP(T1, A(2), T1); IF(NE, T1, 2); SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -484,7 +484,7 @@ op jnz_t (disp:int(15), a:reg_d, n4:card(4), n1:card(1), n:card(5))
    action = 	{
 	  	if (a<n..n>) 
 		then 
-	     		PC = PC + coerce(int(32),disp)*2; 
+	     		NPC = PC + coerce(int(32),disp)*2; 
 	  	endif; 
    		}
   	otawa_sem = "SCRATCH(T1); IF(NE, T1, 1); CONT; SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -500,7 +500,7 @@ op jz_a (disp:int(15),a:reg_a,foo:card(4))
    action = 	{
 	  	if (a==0) 
 		then 
-	     		PC = PC + coerce(int(32),disp)*2; 
+	     		NPC = PC + coerce(int(32),disp)*2; 
 	  	endif; 
    		}
   	otawa_sem = "SETI(T1, 0); CMP(T1, A(2), T1); IF(NE, T1, 1); CONT; SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -516,7 +516,7 @@ op jz_t (disp:int(15),a:reg_d,n4:card(4),n1:card(1),n:card(5))
    action = 	{
 	  	if ((a<n..n>) == 0) 
 		then 
-	     		PC = PC + coerce(int(32),disp)*2; 
+	     		NPC = PC + coerce(int(32),disp)*2; 
 	  	endif; 
    }
   	otawa_sem = "SCRATCH(T1); IF(NE, T1, 1); CONT; SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
@@ -539,7 +539,7 @@ op ret (foo1:card(4),foo2:card(14))
 		then
 			error("TRAP");//TRAP(CTYP)
 		endif;
-		PC = A[11]<31..1>::0b0;
+		NPC = A[11]<31..1>::0b0;
 		TMP_3 = PCXS::0b000000::PCXO::0b000000;
 		loadWord(TMP_1,TMP_3);
 		loadWord(TMP_2,TMP_3+4);
@@ -566,17 +566,18 @@ op ret (foo1:card(4),foo2:card(14))
 
 
 op loop(b:reg_a, const:int(15), foo:card(4))
-   syntax = format("loop %s, %08x", b.syntax, __IADDR+coerce(int(32),const)*2)
-   image = format("0%15b%s%4b11111101",const,b.image,foo)
-   action = { 
-   	 sign_ext15to32(2* const, TMP_1);
-	 	 if (b!=0) 
-			then 
-	  	  PC = PC + TMP_1;
-	 	 endif;
-		 b = b-1;
-   }
-   	otawa_sem = "SETI(T1, 0), CMP(T1, D(1), T1); SETI(T2, 1); SUB(D(1), D(1), T2); IF(NE, T1, 1); CONT; SETI(T1, IADDR + S15(2) * 2); BRANCH(T1);"
+	syntax = format("loop %s, %08x", b.syntax, __IADDR+coerce(int(32),const)*2)
+	image = format("0%15b%s%4b11111101",const,b.image,foo)
+	action = { 
+		TMP_0 = 2 * const;
+		sign_ext15to32(TMP_0, TMP_1);
+		if (b!=0) 
+		then 
+			NPC = PC + TMP_1;
+		endif;
+		b = b-1;
+	}
+	otawa_sem = "SETI(T1, 0), CMP(T1, D(1), T1); SETI(T2, 1); SUB(D(1), D(1), T2); IF(NE, T1, 1); CONT; SETI(T1, IADDR + S15(2) * 2); BRANCH(T1);"
 
 
 op loopu(const:int(15))
@@ -584,7 +585,7 @@ op loopu(const:int(15))
 	image = format("1 %15b XXXX XXXX 11111101", const)
 	action = {
 		sign_ext15to32(2* const, TMP_1);
-		PC = PC + TMP_1;
+		NPC = PC + TMP_1;
 	}
 
 
@@ -599,7 +600,7 @@ op fcall(d1 : card(16), d2:card(8), const:int(24))
    	TMP_1 = PC+4;
    	TMP_2 = A[10]-4;
    	storeWord(A[11],TMP_2);
-   	PC  = PC + coerce(int(32),2*const);
+   	NPC  = PC + coerce(int(32),2*const);
    	A[11] = TMP_1;
    	A[10] = TMP_2;
    }
@@ -616,10 +617,10 @@ op fcalla(d1 : card(16), d2:card(8), const:int(24))
    	TMP_1 = PC+4;
    	TMP_2 = A[10]-4;
    	storeWord(A[11],TMP_2);
-   	PC<0..0>  = 0;
-   	PC<20..1> = const<19..0>;
-   	PC<27..21> = 0b0000000;
-   	PC<31..28> = const<23..20>;
+   	NPC<0..0>  = 0;
+   	NPC<20..1> = const<19..0>;
+   	NPC<27..21> = 0b0000000;
+   	NPC<31..28> = const<23..20>;
    	A[11] = TMP_1;
    	A[10] = TMP_2;
    }
@@ -632,8 +633,8 @@ op fcalli(a : reg_a)
 		TMP_1 = PC+4;
 		TMP_2 = A[10]-4;
 		storeWord(A[11],TMP_2);
-		PC<31..1> = a<31..1>;
-		PC<0..0> = 0;
+		NPC<31..1> = a<31..1>;
+		NPC<0..0> = 0;
 		A[11] = TMP_1;
    	A[10] = TMP_2;
 	}
@@ -643,8 +644,8 @@ op fret()
 	syntax = "fret"
 	image = "XXXX 000011 XXXXXXXXXX XXXX 00001101"
 	action = {
-		PC<31..1> = A[11]<31..1>;
-		PC<0..0> = 0;
+		NPC<31..1> = A[11]<31..1>;
+		NPC<0..0> = 0;
 		TMP_1 = A[10];
 		loadWord(A[11],TMP_1);
 		A[10] = A[10]+4;

@@ -3,7 +3,27 @@ include "adressmodes.nmp"
 include "32bits/i32bits.nmp"
 include "16bits/i16bits.nmp"
 
-op instruction = i32bits|i16bits 
+op multi = I32BITS | I16BITS
+
+op I32BITS(x : i32bits)
+	image = x.image
+	syntax = x.syntax
+	action = {
+		NPC = PC + 4;
+		x.action;
+		PC = NPC;
+	}
+	
+op I16BITS(x : i16bits)
+	image = x.image
+	syntax = x.syntax
+	action = {
+		NPC = PC + 2;
+		x.action;
+		PC = NPC;
+	}	
+
+// op instruction = i32bits|i16bits 
 
 op init()
    action = 	{

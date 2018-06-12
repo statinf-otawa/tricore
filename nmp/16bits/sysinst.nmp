@@ -76,7 +76,7 @@ op rfe16()
 		endif; endif; endif; endif; endif; endif;
 		if((result_byte1==0) || CDC==0b0000000) then tmp1=1; else tmp1=0; endif;
 		if(tmp1==0 && CDEFLAG ==1) then error("TRAP"); endif;
-		PC = A[11]<31..1> :: 0b0;
+		NPC = A[11]<31..1> :: 0b0;
 		IE = PIE;
 		CCPN = PCPN;
 		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
