@@ -14,14 +14,15 @@ type word = card(32)
 type double_word = card(64)
 type byte = card(8)
 type index = card(AREGS)
-type flots = float( 23 , 9 )
+type flots = float( 23 , 9 ) // IEEE-754 single precision 32 bits
+type double = float(52, 12)
 
 
 //les alias ne fonctionnent pas -> CSFR inutile, "initial = " ne fonctionne pas
 
 reg A[2**AREGS,word]							//adress registers
 reg D[2**DREGS,word]							//data registers
-reg E[2**(DREGS-1),double_word] alias = D[0]	//64 bits data registers
+reg E[2**(DREGS-1),double_word] alias = D[3]	//64 bits data registers
 reg P[2**(AREGS-1),double_word] alias = A[0]	//64 bits adress registers
 
 //reg CSFR[13,word] //core special function register
@@ -72,13 +73,17 @@ var TMP_2[1,word]
 var TMP_3[1,word]
 var TMP_4[1,word]
 var TMP_5[1,word]
-var MAX[1,word]
-var MIN[1,word]
+var TMP_6_i32[1,int(32)]
+var TMP_7_i32[1,int(32)]
+var MAX[1,int(32)]
+var MIN[1,int(32)]
 var indice[1,word]
 var dividende[1,word]
 var diviseur[1,word]
 var quotient[1,word]
 var reste[1,word]
+
+var _TMP_1[1,word] // used by macro, invisible by the user
 
 var sc1[1, bool]
 var sc0[1, bool]
@@ -87,7 +92,16 @@ var result_word0[1, int(32)]
 
 var TMP64_1[1,double_word]
 var TMP64_2[1,double_word]
+var TMP64_3[1,double_word]
+var TMP64_4[1,double_word]
+var _TMP64_1[1, int(64)]
+var _TMP64_2[1, int(64)]
+var _TMP64_3[1, int(64)]
 var result64[1,double_word]
+var result64s[1,int(64)]
+var TMP64_1s[1,int(64)]
+var TMP64_2s[1,int(64)]
+var TMP64_3s[1,int(64)]
 
 mem M[32,byte]
 
@@ -103,14 +117,36 @@ var int_mant[1, int(32)]
 var fl1[1,flots]
 var fl0[1,flots]
 var fl2[1,flots]
+var realres[1,flots]
 var preres[1,flots]
 var norres[1,flots]
+
+var _F_0x80000000[1,flots] // -0.0 float 
+var _F_0x00000000[1,flots] // +0.0 float
+var _F_0x00800000[1,flots] // minimum positive normal float
+var _F_0x80800000[1,flots] // maximum negative normal float
+var _F_TMP[1,flots]
+var TMPF_1[1,flots]
+var TMPF_2[1,flots]
+
+var _TMP1[1, int(32)]
+var _D_0x3810000000000000[1, double] // 2^126
+var _D_0xB810000000000000[1, double] // -2^126
+var _D_0x47F0000000000000[1, double] // 2^128
+var _D_TMP1[1, double]
+var TMPD_1[1,double]
+var TMPD_2[1,double]
+var TMPD_3[1,double]
+
 
 var setFI[1,bit]
 var setFV[1,bit]
 var setFZ[1,bit]
 var setFU[1,bit]
 var setFX[1,bit]
+
+var TMP_VFLAG[1, bit]
+var TMP_AVFLAG[1, bit]
 
 
 ///////////////////////////////////////////
@@ -136,7 +172,7 @@ macro CDEFLAG = \
 	PSW<7..7>
 
 macro CDC = \
-	PSW<0..6>
+	PSW<6..0>
 
 macro IO = \
 	PSW<10..11>
@@ -217,14 +253,38 @@ macro fl_lt(x,y) = if(x<y) then 1 else 0 endif
 macro fl_gt(x,y) = if(x>y) then 1 else 0 endif
 macro fl_eq(x,y) = if(x==y) then 1 else 0 endif
 
+// exponent (bit 30 to 23) are 0
+// fraction (bit 22 to 0) are not zero
 macro is_denorm(x) = if((x<30..23>==0) && (x<22..0>!=0)) then 1 else 0 endif
 
-macro denorm_to_zero(x,res) = \
-	if ((x<0) && (x>-2**126)) then res = -0.0;\
-	else if ((x>0) && (x<2**126)) then res = +0.0;\
+//	if ((x<0) && (x>-2**126)) then res = -0.0;\
+//	else if ((x>0) && (x<2**126)) then res = +0.0;\
+
+// denorm from floating-point-number to floating-point-number
+macro denorm_to_zero_f(x,res) = \
+	_F_0x80000000<31..0> = 0x80000000;\
+	_F_0x00000000<31..0> = 0x00000000;\
+	_F_0x00800000<31..0> = 0x00800000;\
+	_F_0x80800000<31..0> = 0x80800000;\
+	if ((x < 0) && (x > _F_0x80800000)) then res = _F_0x80000000;\
+	else if ((x > 0) && (x < _F_0x00800000)) then res = _F_0x00000000;\
 	else res = x;\
 	endif; \
 	endif;
+
+// denorm from 32-bit value to floating point number
+macro denorm_to_zero(x,res) = \
+	_F_TMP<31..0> = x;\
+	_F_0x80000000<31..0> = 0x80000000;\
+	_F_0x00000000<31..0> = 0x00000000;\
+	_F_0x00800000<31..0> = 0x00800000;\
+	_F_0x80800000<31..0> = 0x80800000;\
+	if ((_F_TMP < 0) && (_F_TMP > _F_0x80800000)) then res = _F_0x80000000;\
+	else if ((_F_TMP > 0) && (_F_TMP < _F_0x00800000)) then res = _F_0x00000000;\
+	else res = _F_TMP;\
+	endif; \
+	endif;
+
 	
 macro isSnan(x,res) =\
 	if ((x<30..23> == 0b11111111) && (x<22..22> == 0b0) && (x<21..0> != 0)) then \
@@ -330,195 +390,259 @@ macro fabsdif(a, b) = if a > b then a - b else b - a endif
 macro carry(result) =\
 	CFLAG = result<32..32>;
 
+macro carry2(a, b, c) =\
+	_TMP64_1 = a;\
+	_TMP64_2 = 0;\
+	_TMP64_2<31..0> = b;\
+	_TMP64_3 = 0;\
+	_TMP64_3<0..0> = c<0..0>;\
+	_TMP64_2 = _TMP64_1 + _TMP64_2 + _TMP64_3;\
+	CFLAG = _TMP64_2<32..32>;
+
+// need 65bits to know!!
 macro overflow64(result) =\
-	if ((result > 0x7FFFFFFFFFFFFFFF) || (result < 0x8000000000000000))\
+	if (result<63..63> == 1) \
 	then\
 		VFLAG=1;\
+		TMP_VFLAG  = 1;\
 	else\
 		VFLAG=0;\
+		TMP_VFLAG  = 0;\
 	endif
 	
 macro overflow64_u(result) =\
 	if ((result > 0xFFFFFFFFFFFFFFFF) || (result < 0x0000000000000000))\
 	then\
 		VFLAG=1;\
+		TMP_VFLAG  = 1;\
 	else\
 		VFLAG=0;\
+		TMP_VFLAG  = 0;\
 	endif
 
 macro overflow(result) =\
-	if ((result > 0x7FFFFFFF) || (result < -0x80000000))\
+	_TMP64_1 = 0x7FFFFFFF;\
+	_TMP64_2 = -0x80000000;\
+	if ((result > _TMP64_1) || (result < _TMP64_2))\
 	then\
 		VFLAG=1;\
+		TMP_VFLAG=1;\
 	else\
 		VFLAG=0;\
+		TMP_VFLAG=0;\
 	endif
 	
 macro overflow_h(result_halfword0,result_halfword1) = \
 	if(result_halfword0 > 0x7FFF || result_halfword0 < -0x8000 || result_halfword1 > 0x7FFF || result_halfword1 < -0x8000)\
 	 then\
 			VFLAG = 1;\
+			TMP_VFLAG  = 1;\
 		else\
 			VFLAG = 0;\
+			TMP_VFLAG  = 0;\
 		endif
 		
 macro overflow_h64(result_word0,result_word1) = \
 	if(result_word0 > 0x7FFFFFFF || result_word0 < -0x80000000 || result_word1 > 0x7FFFFFFF || result_word1 < -0x80000000)\
 	 then\
 			VFLAG = 1;\
+			TMP_VFLAG  = 1;\
 		else\
 			VFLAG = 0;\
+			TMP_VFLAG  = 0;\
 		endif
 
 macro overflow_b(result_byte3,result_byte2,result_byte1,result_byte0) =\
 	if(result_byte3>0x7F || result_byte3<-0x80 || result_byte2>0x7F || result_byte2<-0x80 || result_byte1>0x7F || result_byte1<-0x80 ||result_byte0>0x7F || result_byte0<-0x80)\
 	 then\
 			VFLAG = 1;\
+			TMP_VFLAG = 1;\
 		else\
 			VFLAG = 0;\
+			TMP_AVFLAG = 0;\
 		endif
 
 macro overflow_u(result) =\
 	if ((result > 0xFFFFFFFF) || (result < 0x00000000))\
 	then\
 		VFLAG=1;\
+		TMP_VFLAG = 1;\
 	else\
 		VFLAG=0;\
+		TMP_VFLAG = 0;\
 	endif
 
 
 macro stickyOverflow() =\
-	if (VFLAG)\
+	if (TMP_VFLAG)\
 	then\
 		SVFLAG = 1;\
-	else\
-		SVFLAG = SVFLAG;\
 	endif
 
 macro advancedOverflow(result) =\
 	if (result<31..31> ^ result<30..30>)\
 	then\
 		AVFLAG = 1;\
+		TMP_AVFLAG = 1;\
 	else\
 		AVFLAG = 0;\
+		TMP_AVFLAG = 0;\
 	endif
 	
 macro advancedOverflow64(result) =\
 	if (result<63..63> ^ result<62..62>)\
 	then\
 		AVFLAG = 1;\
+		TMP_AVFLAG = 1;\
 	else\
 		AVFLAG = 0;\
+		TMP_AVFLAG = 0;\
 	endif
 	
 macro advancedOverflow_h64(result_halfword0,result_halfword1) = \
 	if ((result_halfword0<31..31> ^ result_halfword0<30..30>) ||(result_halfword1<31..31> ^ result_halfword1<30..30>))\
 	 then\
 			AVFLAG = 1;\
+			TMP_AVFLAG = 1;\
 		else\
 			AVFLAG = 0;\
+			TMP_AVFLAG = 0;\
 		endif
 		
 macro advancedOverflow_h(result_halfword0,result_halfword1) = \
 	if ((result_halfword0<15..15> ^ result_halfword0<14..14>) ||(result_halfword1<15..15> ^ result_halfword1<14..14>))\
 	 then\
 			AVFLAG = 1;\
+			TMP_AVFLAG = 1;\
 		else\
 			AVFLAG = 0;\
+			TMP_AVFLAG = 0;\
 		endif
 
 macro advancedOverflow_b(result_byte3,result_byte2,result_byte1,result_byte0) =\
 	if((result_byte3<7..7> ^ result_byte3<6..6>) ||(result_byte2<7..7> ^ result_byte2<6..6>) || (result_byte1<7..7> ^ result_byte1<6..6> )|| (result_byte0<7..7> ^ result_byte0<6..6>))\
 	 then\
 			AVFLAG = 1;\
+			TMP_AVFLAG = 1;\
 		else\
 			AVFLAG = 0;\
+			TMP_AVFLAG = 0;\
 		endif
 
 
 macro stickyAdvancedOverflow() =\
-	if (AVFLAG)\
+	if (TMP_AVFLAG)\
 	then\
 		SAVFLAG = 1;\
-	else\
-		SAVFLAG = SAVFLAG;\
 	endif
 
 macro sign_ext4to32(const, temp) =\
-	temp<4..31> = 0x0000000;\
-	temp<0..3> = const<0..3>;\
+	temp<31..4> = 0x0000000;\
+	temp<3..0> = const<3..0>;\
 	if temp<3..3> == 1\
 	then\
-        	temp<4..31> = 0xFFFFFFF;\
+        	temp<31..4> = 0xFFFFFFF;\
         endif 
         
 macro sign_ext5to32(const, temp) =\
-	temp<5..31> = 0x0000000;\
-	temp<0..4> = const<0..4>;\
+	temp<31..5> = 0x0000000;\
+	temp<4..0> = const<4..0>;\
 	if temp<4..4> == 1\
 	then\
-        	temp<5..31> = 0xFFFFFFF;\
+        	temp<31..5> = 0xFFFFFFFF;\
+        endif 
+
+macro sign_ext6to32(const, temp) =\
+	temp<31..6> = 0x0000000;\
+	temp<5..0> = const<5..0>;\
+	if temp<5..5> == 1\
+	then\
+        	temp<31..6> = 0xFFFFFFFF;\
         endif 
 
 macro sign_ext8to32(const, temp) =\
-	temp<8..31> = 0x000000;\
-	temp<0..7> = const<0..7>;\
+	temp<31..8> = 0x000000;\
+	temp<7..0> = const<7..0>;\
 	if temp<7..7> == 1\
 	then\
-        	temp<8..31> = 0xFFFFFF;\
+        	temp<31..8> = 0xFFFFFFFF;\
         endif 
 
 macro sign_ext9to32(const, temp) =\
-	temp<9..31> = 0x000000;\
-	temp<0..8> = const<0..8>;\
+	temp<31..9> = 0x000000;\
+	temp<8..0> = const<8..0>;\
 	if temp<8..8> == 1\
 	then\
-        	temp<9..31> = 0x7FFFFF;\
+        	temp<31..9> = 0xFFFFFFFF;\
         endif 
         
 macro sign_ext10to32(const, temp) =\
-	temp<10..31> = 0x000000;\
-	temp<0..9> = const<0..9>;\
+	temp<31..10> = 0x000000;\
+	temp<9..0> = const<9..0>;\
 	if temp<9..9> == 1\
 	then\
-        	temp<10..31> = 0x7FFFFF;\
+        	temp<31..10> = 0x7FFFFF;\
         endif 
 
 macro sign_ext16to32(const, temp) =\
-	temp<16..31> = 0x0000;\
-	temp<0..15> = const<0..15>;\
+	temp<31..16> = 0x0000;\
+	temp<15..0> = const<15..0>;\
 	if (temp<15..15> == 1)\
 	then\
-        	temp<16..31> = 0xFFFF;\
+        	temp<31..16> = 0xFFFF;\
         endif
         
+macro sign_ext4to64(const, temp) =\
+	temp<63..4> = 0x0000000;\
+	temp<3..0> = const<3..0>;\
+	if temp<3..3> == 1\
+	then\
+        	temp<63..4> = 0xFFFFFFFFFFFFFFF;\
+        endif 
+
+macro sign_ext6to64(const, temp) =\
+	temp<63..6> = 0x0000000;\
+	temp<5..0> = const<5..0>;\
+	if temp<5..5> == 1\
+	then\
+        	temp<63..6> = 0xFFFFFFFFFFFFFFF;\
+        endif 
+                
+macro sign_ext9to64(const, temp) =\
+	temp<63..9> = 0x000000;\
+	temp<8..0> = const<8..0>;\
+	if temp<8..8> == 1\
+	then\
+        	temp<63..9> = 0xFFFFFFFFFFFFFFFF;\
+        endif 
+                
 macro sign_ext16to64(const, temp) =\
-	temp<16..63> = 0x000000000000;\
-	temp<0..15> = const<0..15>;\
+	temp<63..16> = 0x000000000000;\
+	temp<15..0> = const<15..0>;\
 	if (temp<15..15> == 1)\
 	then\
-        	temp<16..63> = 0xFFFFFFFFFFFF;\
+        	temp<63..16> = 0xFFFFFFFFFFFF;\
         endif
         
 macro sign_ext32to64(const, temp) =\
-	temp<32..63> = 0x00000000;\
-	temp<0..31> = const<0..31>;\
+	temp<63..32> = 0x00000000;\
+	temp<31..0> = const<31..0>;\
 	if (temp<31..31> == 1)\
 	then\
-        	temp<32..63> = 0xFFFFFFFFFFFF;\
+        	temp<63..32> = 0xFFFFFFFFFFFF;\
         endif
         
 macro sign_ext15to32(const, temp) =\
-	temp<15..31> = 0x0000;\
-	temp<0..14> = const<0..14>;\
+	temp<31..15> = 0x0000;\
+	temp<14..0> = const<14..0>;\
 	if (temp<14..14> == 1)\
 	then\
-        	temp<15..31> = 0x1FFFF;\
+        	temp<31..15> = 0xFFFFFF;\
         endif
 
 macro zero_ext32(const, temp, n) =\
-	temp<0..(n-1)> = const<0..(n-1)>;\
-	temp<n..31> = 0
+	temp<(n-1)..0> = const<(n-1)..0>;\
+	temp<31..n> = 0
 	
 	
 
@@ -533,7 +657,7 @@ macro ssov(x, y, res) =\
 		then\
 			res = MIN;\
 		else\
-			res = x<0..31>;\
+			res = x<31..0>;\
 		endif;\
 	endif
 
@@ -547,7 +671,7 @@ macro suov(x,y,res) =\
 		then\
 			res = 0;\
 		else\
-			res = x<0..(y-1)>;\
+			res = x<(y-1)..0>;\
 		endif;\
 	endif
 
@@ -617,3 +741,34 @@ macro cdc_decr(temp) = \
 			temp = 0;\
 		endif;\
 	endif
+	
+	
+macro float2double(flt, dbl) =\
+	dbl = flt;
+	
+macro float2double2(flt, dbl) =\
+	_TMP1 = flt<30..23>;\
+	_TMP1 = _TMP1 + 1023 - 126;\
+	dbl<63..63> = flt<31..31>;\
+	dbl<62..52> = _TMP1<10..0>;\
+	dbl<51..29> = flt<22..0>;\
+	dbl<28..0> = 0;
+
+macro checkFV(norres, setFV) =\
+	_D_0x47F0000000000000<63..0> = 0x47F0000000000000;\
+	float2double(norres, _D_TMP1);\
+	if(_D_TMP1 >= _D_0x47F0000000000000) then setFV=1; else setFV=0; endif;
+	
+	
+macro checkFU(fl2, setFU) =\
+	_D_0x3810000000000000<63..0> = 0x3810000000000000;\
+	_D_0xB810000000000000<63..0> = 0xB810000000000000;\
+	float2double(fl2, _D_TMP1);\
+	if ( (_D_TMP1 > 0) && (_D_TMP1 < _D_0x3810000000000000) ) then setFU = 1; else setFU = 0; endif;
+
+	
+macro checkFX(preres, fullres, setFX) = \
+	float2double(preres, _D_TMP1);\
+	if (_D_TMP1 != fullres) then setFX=1; else setFX=0; endif;
+
+

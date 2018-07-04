@@ -449,9 +449,9 @@ op ld_h_16_4 (c:reg_d, b:reg_a)
 ////////////////// st.h //////////////////
 op st_h_16 = st_h_16_1 | st_h_16_2 | st_h_16_3 | st_h_16_4
 
-op st_h_16_1 (a:reg_d, b:reg_a)
+op st_h_16_1 (a:reg_d, b:reg_a)		// ST.H A[b], D[a] (SSR)(Post-increment Addressing Mode)
    syntax = format("st.h ,[%s+],%s",b.syntax,a.syntax)
-   image = format("%s%s10100100",b.image,a.image)
+   image = format("%s %s %8b",b.image,a.image, 0xA4)
    action = 	{ 
 		indice = b;
 		M[indice] = a<7..0>;
@@ -460,9 +460,9 @@ op st_h_16_1 (a:reg_d, b:reg_a)
 		}
 	otawa_sem = "STOREH(D(0), A(1)); SETI(T1, 2); ADD(A(1), A(1), T1);"
 
-op st_h_16_2 (b:reg_d, off4:card(4))
-   syntax = format("st.h %s,%d,d15",b.syntax,off4)
-   image = format("%s%4b10101100",b.image,off4)
+op st_h_16_2 (b:reg_a, off4:card(4)) // ST.H A[b], off4, D[15] (SRO)
+   syntax = format("st.h %s,%d,d15", b.syntax, off4)
+   image = format("%s %4b %8b",b.image,off4, 0xAC)
    action = 	{
 		indice = b+off4*2;				// !!DEBUG!!
 		M[indice] = D[15]<7..0>;
@@ -470,9 +470,9 @@ op st_h_16_2 (b:reg_d, off4:card(4))
 		}
 	otawa_sem = "SETI(T1, 2 * U4(1)); ADD(T1, A(0), T1); STOREH(D15, T1);"
 
-op st_h_16_3 (a:reg_d, off4:card(4))
+op st_h_16_3 (a:reg_d, off4:card(4))	// ST.H A[15], off4, D[a] (SSRO)
    syntax = format("st.h a15,%d,%s",off4,a.syntax)
-   image = format("%4b%s10101000",off4,a.image )
+   image = format("%4b %s %8b",off4,a.image, 0xA8)
    action = 	{ 
 		indice = A[15]+off4*2;
 		M[indice] = a<7..0>;
@@ -480,9 +480,9 @@ op st_h_16_3 (a:reg_d, off4:card(4))
 		}
 	otawa_sem = "SETI(T1, 2 * U4(1)); ADD(T1, A15, T1); STOREH(D(0), T1);"
 
-op st_h_16_4 (a:reg_d, b:reg_a)
+op st_h_16_4 (a:reg_d, b:reg_a)			// ST.H A[b], D[a] (SSR)
    syntax = format("st.h ,[%s],%s",b.syntax,a.syntax)
-   image = format("%s%s10110100",b.image,a.image)
+   image = format("%s %s %8b",b.image,a.image, 0xB4)
    action = 	{ 
 		indice = b;
 		M[indice] = a<7..0>;

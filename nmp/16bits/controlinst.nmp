@@ -8,17 +8,17 @@ op call16(const:int(8))
    action = 	{ 
 	  	if (FCX == 0)
 		then
-			error("TRAP");//TRAP(FCU)
+			error("TRAP call16:FCX==0");//TRAP(FCU)
 		endif;
 		cdc_incr(TMP_1);
 		if (CDEFLAG && TMP_1)
 		then
-			error("TRAP");//TRAP(CDO)
+			error("TRAP call16:CDEFLAG==1");//TRAP(CDO)
 		endif;
 		CDEFLAG = 1;
 		TMP_1 = PC+2;
 		TMP_2 = FCX;
-		TMP_3 = FCXS::0b000000::FCXO::0b000000;
+		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
 		loadWord(TMP_4,TMP_3);
 		storeWord(PCXI,TMP_3);
 		storeWord(PSW,TMP_3+4);
@@ -45,7 +45,7 @@ op call16(const:int(8))
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
-			error("TRAP");//TRAP(FCD)
+			error("TRAP call16:LCX==FCX");//TRAP(FCD)
 		endif;
    		}
    		otawa_sem = "SAVE_CONTEXT; SETI(A11, IADDR + 2); SETI(T1, IADDR + 2 * S8(0)); BRANCH(T1);"
@@ -100,8 +100,9 @@ op jeq16_reg_2(b:reg_d, disp:card(4))
 	syntax = format("jeq d15, %s, %08x", b.syntax, __IADDR+coerce(card(32),disp+16)*2)
 	image = format("%s %4b %8b", b.image, disp, 0xBE)
 	action = {
-		zero_ext32(disp+16, TMP_2, 4);
-		TMP_2=2*TMP_2;
+		TMP_2 = disp;
+		TMP_2 = TMP_2 + 16;
+		TMP_2 = TMP_2*2;
 		if (D[15]==b) then
 			NPC=PC+TMP_2;
 		endif;
@@ -111,7 +112,8 @@ op jgez (b:reg_d, disp:card(4))
     syntax = format("jgez %s, %08x", b.syntax, __IADDR+coerce(card(32),disp)*2)
     image = format("%s%4b11001110",b.image,disp)
     action = 	{
-		if(b >= 0)
+    	TMP_6_i32 = b;
+		if(TMP_6_i32 >= 0)
 		then 
 			NPC = PC + coerce(card(32),disp)*2; 
 		endif;
@@ -122,7 +124,8 @@ op jgtz (b:reg_d,disp:card(4))
     syntax = format("jgtz %s, %08x", b.syntax, __IADDR+coerce(card(32),disp)*2)
     image = format("%s%4b01001110",b.image,disp)
     action = 	{
-		if(b > 0)
+    	TMP_6_i32 = b;
+		if(TMP_6_i32 >= 0)
 		then 
 			NPC = PC + coerce(card(32),disp)*2; 
 		endif;
@@ -133,7 +136,8 @@ op jlez (b:reg_d,disp:card(4))
     syntax = format("jlez %s, %08x", b.syntax, __IADDR+coerce(card(32),disp)*2)
     image = format("%s%4b10001110",b.image,disp)
     action = 	{
-		if(b <= 0)
+    	TMP_6_i32 = b;
+		if(TMP_6_i32 <= 0)
 		then 
 			NPC = PC + coerce(card(32),disp)*2; 
 		endif;
@@ -144,7 +148,8 @@ op jltz (b:reg_d, disp:card(4))
     syntax = format("jltz %s, %08x", b.syntax, __IADDR+coerce(card(32),disp)*2)
     image = format("%s%4b00001110",b.image,disp)
     action = 	{
-		if(b<0)
+    	TMP_6_i32 = b;
+		if(TMP_6_i32 < 0) // or check the 31st bit is 1
 		then
 			NPC = PC + coerce(card(32),disp)*2;
 		endif;
@@ -201,7 +206,7 @@ op jz_t_16 (n:card(4), disp:card(4))
    syntax = format("jz.t d15, %d, %08x", n, __IADDR+coerce(card(32),disp)*2)
    image = format("%4b%4b00101110",n,disp)
    action = 	{ 
-		if (D[15]<n..n>)
+		if (D[15]<n..n> == 0)
 		then 
 			NPC = PC + coerce(card(32),disp)*2; 
 		endif; 
@@ -237,37 +242,20 @@ op ret_16 (foo:card(4))
 		cdc_decr(TMP_1);
 		if (CDEFLAG && TMP_1)
 		then
-			error("TRAP");//TRAP(CDU)
+			error("TRAP ret16:CDEFLAG==CDC");//TRAP(CDU)
 		endif;
 		if(PCXI<0..19> == 0)
 		then
-			error("TRAP");//TRAP(CSU)
+			error("TRAP ret16:PCXI<0..19>==0");//TRAP(CSU)
 		endif;
 		if (UL == 0)
 		then
-			error("TRAP");//TRAP(CTYP)
+			error("TRAP ret16:UL==0");//TRAP(CTYP)
 		endif;
 		NPC = A[11]<31..1>::0b0;
-		TMP_3 = PCXS::0b000000::PCXO::0b000000;
-		loadWord(TMP_1,TMP_3);
-		loadWord(TMP_2,TMP_3+4);
-		loadWord(A[10],TMP_3+8);
-		loadWord(A[11],TMP_3+12);
-		loadWord(D[8],TMP_3+16);
-		loadWord(D[9],TMP_3+20);
-		loadWord(D[10],TMP_3+24);
-		loadWord(D[11],TMP_3+28);
-		loadWord(A[12],TMP_3+32);
-		loadWord(A[13],TMP_3+36);
-		loadWord(A[14],TMP_3+40);
-		loadWord(A[15],TMP_3+44);
-		loadWord(D[12],TMP_3+48);
-		loadWord(D[13],TMP_3+52);
-		loadWord(D[14],TMP_3+56);
-		loadWord(D[15],TMP_3+60);
-		
-		loadWord(TMP_1,TMP_3);
-		loadWord(PSW,TMP_3+4);
+		TMP_3 = PCXS<0..3>::0b000000::PCXO<0..15>::0b000000;
+		loadWord(TMP_1,TMP_3); 		// new_PCXI
+		loadWord(TMP_2,TMP_3+4); 	// new_PSW
 		loadWord(A[10],TMP_3+8);
 		loadWord(A[11],TMP_3+12);
 		loadWord(D[8],TMP_3+16);
@@ -286,7 +274,7 @@ op ret_16 (foo:card(4))
 		storeWord(FCX,TMP_3);
 		FCX<0..19> = PCXI<0..19>;
 		PCXI = TMP_1;
-		PSW = TMP_1<31..26>::PSW<25..24>::TMP_1<23..0>;
+		PSW = TMP_2<31..26>::PSW<25..24>::TMP_2<23..7>::CDC<6..0>;
 		}
 	otawa_sem = "BRANCH(A11); LOAD_CONTEXT;"
 

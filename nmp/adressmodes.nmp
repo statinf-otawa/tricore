@@ -1,4 +1,40 @@
-mode regi = reg_a|reg_d|reg_e|reg_p
+mode regi = reg_a|reg_d|reg_e|reg_p|EXT_ADDR_REG|EXT_DATA_REG
+
+mode sign16(n:int(16)) = n
+	syntax = format("#%d",n)
+	image = format("%16b",n)
+	v = n
+	
+mode sign9(n:int(9)) = n
+	syntax = format("#%d",n)
+	image = format("%9b",n)
+	v = n
+	
+mode sign6(n:int(6)) = n
+	syntax = format("#%d",n)
+	image = format("%6b",n)
+	v = n	
+
+mode sign4(n:int(4)) = n
+	syntax = format("#%d",n)
+	image = format("%4b",n)
+	v = n
+	
+mode EXT_DATA_REG(r: index) = r
+	image  = format("%4b", r)
+	syntax = format("e%d",r)
+	l = r
+	h = r + 1
+	i = l
+	
+mode EXT_ADDR_REG(r: index) = r
+	image  = format("%4b", r)
+	syntax = format("e%d",r)
+	l = r
+	h = r + 1
+	i = l
+
+
 
 mode reg_a (r:index) = A[r]
      syntax = format("a%d",r)
@@ -25,6 +61,11 @@ mode const4 (const:card(4)) = const
      image = format("%4b",const)
      v = const
 
+mode const5 (const:card(5)) = const
+     syntax = format("#%d",const)
+     image = format("%5b",const)
+     v = const
+     
 mode const8 (const:card(8)) = const
      syntax = format("#%d",const)
      image = format("%8b",const)
@@ -49,4 +90,5 @@ mode width5 (w:card(5)) = w
      syntax = format("#%d",w)
      image = format("%5b",w)
      v = w
+     
      

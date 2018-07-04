@@ -45,17 +45,18 @@ op call(const:int(24), d1:card(16), d2:card(8))
    action = 	{ 
 	  	if (FCX == 0)
 		then
-			error("TRAP");//TRAP(FCU)
+			error("TRAP call:FCU == 0");//TRAP(FCU)
 		endif;
 		cdc_incr(TMP_1);
 		if (CDEFLAG && TMP_1)
 		then
-			error("TRAP");//TRAP(CDO)
+			error("TRAP call:CDEFLAG==CDC");//TRAP(CDO)
 		endif;
 		CDEFLAG = 1;
 		TMP_1 = PC+4;
 		TMP_2 = FCX;
-		TMP_3 = FCXS::0b000000::FCXO::0b000000;
+		// TMP_3 = FCXS::0b000000::FCXO::0b000000;
+		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
 		loadWord(TMP_4,TMP_3);
 		storeWord(PCXI,TMP_3);
 		storeWord(PSW,TMP_3+4);
@@ -82,7 +83,7 @@ op call(const:int(24), d1:card(16), d2:card(8))
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
-			error("TRAP");//TRAP(FCD)
+			error("TRAP call:FCX == LCX");//TRAP(FCD)
 		endif;
    		}
 	otawa_sem	= "SAVE_CONTEXT; SETI(A11, IADDR + 4); SETI(T1, IADDR + 2 * ((S8(2) << 16) + U16(1))); BRANCH(T1); "
@@ -98,17 +99,17 @@ op calla(const:int(24), d1:card(16), d2:card(8))
    action = 	{ 
 	  	if (FCX == 0)
 		then
-			error("TRAP");//TRAP(FCU)
+			error("TRAP calla:FCX == 0");//TRAP(FCU)
 		endif;
 		cdc_incr(TMP_1);
 		if (CDEFLAG && TMP_1)
 		then
-			error("TRAP");//TRAP(CDO)
+			error("TRAP calla:CDEFG == CDC");//TRAP(CDO)
 		endif;
 		CDEFLAG = 1;
 		TMP_1 = PC+4;
 		TMP_2 = FCX;
-		TMP_3 = FCXS::0b000000::FCXO::0b000000;
+		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
 		loadWord(TMP_4,TMP_3);
 		storeWord(PCXI,TMP_3);
 		storeWord(PSW,TMP_3+4);
@@ -135,7 +136,7 @@ op calla(const:int(24), d1:card(16), d2:card(8))
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
-			error("TRAP");//TRAP(FCD)
+			error("TRAP calla:FCX == LCX");//TRAP(FCD)
 		endif;
    		}
 	otawa_sem	= "SETI(A11, IADDR + 4); SETI(T1, (U8(2) << 24) + (U16(1) << 6)); SAVE_CONTEXT; BRANCH(T1); "
@@ -147,17 +148,17 @@ op calli(a:reg_a, foo1:card(4), foo2:card(8))
    action = 	{ 
 	  	if (FCX == 0)
 		then
-			error("TRAP");//TRAP(FCU)
+			error("TRAP calli:FCX == 0");//TRAP(FCU)
 		endif;
 		cdc_incr(TMP_1);
 		if (CDEFLAG && TMP_1)
 		then
-			error("TRAP");//TRAP(CDO)
+			error("TRAP calli:CDEFLAG && CDC");//TRAP(CDO)
 		endif;
 		CDEFLAG = 1;
 		TMP_1 = PC+4;
 		TMP_2 = FCX;
-		TMP_3 = FCXS::0b000000::FCXO::0b000000;
+		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
 		loadWord(TMP_4,TMP_3);
 		storeWord(PCXI,TMP_3);
 		storeWord(PSW,TMP_3+4);
@@ -184,7 +185,7 @@ op calli(a:reg_a, foo1:card(4), foo2:card(8))
 		A[11] = TMP_1;
 		if (TMP_2 == LCX)
 		then 
-			error("TRAP");//TRAP(FCD)
+			error("TRAP calli:FCX == LCX");//TRAP(FCD)
 		endif;
    		}
 	otawa_sem	= "SETI(A11, IADDR + 4); SETI(T2, 2); SHL(T1, A(0), T2); SAVE_CONTEXT; BRANCH(T1); "
@@ -258,7 +259,9 @@ op jge_reg (disp:int(15),a:reg_d,b:reg_d)
    syntax = format ("jge %s, %s, %08x", a.syntax, b.syntax, __IADDR+coerce(int(32),disp)*2)
    image = format ("0%15b%s%s01111111",disp,b.image,a.image)
    action = 	{ 
-	  	if (a>=b) then 
+   		TMP_6_i32 = a;
+   		TMP_7_i32 = b;
+	  	if (TMP_6_i32 >= TMP_7_i32) then 
 	     		NPC = PC+coerce(int(32),disp)*2; 
 	  	endif;
    		}
@@ -269,7 +272,9 @@ op jge_const4 (disp:int(15),a:reg_d,const4:card(4))
     syntax = format ("jge %s, %d, %08x", a.syntax, const4, __IADDR+coerce(int(32),disp)*2)
     image = format ("0%15b%4b%s11111111",disp,const4,a.image)
     action =  	{ 
-	   	if (a>=coerce(int(32),const4))
+    	TMP_6_i32 = a;
+    	sign_ext4to32(const4, TMP_7_i32);
+	   	if (TMP_6_i32 >= TMP_7_i32)
 		then 
 	      		NPC = PC+coerce(int(32),disp)*2; 
 	   	endif; 
@@ -317,7 +322,9 @@ op jlt_reg (disp:int(15),a:reg_d,b:reg_d)
    syntax = format ("jlt %s, %s, %08x", a.syntax, b.syntax, __IADDR+coerce(int(32),disp)*2)
    image = format ("0%15b%s%s00111111",disp,b.image,a.image)
    action = 	{ 
-	  	if (a<b)
+   		TMP_6_i32 = a;
+   		TMP_7_i32 = b;
+	  	if (TMP_6_i32 < TMP_7_i32)
 		then 
 	     		NPC = PC+coerce(int(32),disp)*2; 
 	  	endif;
@@ -329,7 +336,8 @@ op jlt_const4 (disp:int(15),a:reg_d,const4:int(4))
     syntax = format ("jlt %s, %d, %08x", a.syntax, const4, __IADDR+coerce(int(32),disp)*2)
     image = format ("0%15b%4b%s10111111",disp,const4,a.image)
     action =  	{ 
-	   	if (a<coerce(int(32),const4))
+    	TMP_6_i32 = a;
+	   	if ( TMP_6_i32 < coerce(int(32),const4) )
 		then 
 	      		NPC = PC + coerce(int(32),disp)*2; 
 	   	endif; 
@@ -529,18 +537,18 @@ op ret (foo1:card(4),foo2:card(14))
 		cdc_decr(TMP_1);
 		if (CDEFLAG && TMP_1)
 		then
-			error("TRAP");//TRAP(CDU)
+			error("TRAP ret:CDEFLAG && CDC");//TRAP(CDU)
 		endif;
 		if(PCXI<0..19> == 0)
 		then
-			error("TRAP");//TRAP(CSU)
+			error("TRAP reg:PCXI<0..19> == 0");//TRAP(CSU)
 		endif;
 		if (UL == 0)
 		then
-			error("TRAP");//TRAP(CTYP)
+			error("TRAP ret:UL == 0");//TRAP(CTYP)
 		endif;
 		NPC = A[11]<31..1>::0b0;
-		TMP_3 = PCXS::0b000000::PCXO::0b000000;
+		TMP_3 = PCXS<0..3>::0b000000::PCXO<0..15>::0b000000;
 		loadWord(TMP_1,TMP_3);
 		loadWord(TMP_2,TMP_3+4);
 		loadWord(A[10],TMP_3+8);
@@ -560,7 +568,7 @@ op ret (foo1:card(4),foo2:card(14))
 		storeWord(FCX,TMP_3);
 		FCX<0..19> = PCXI<0..19>;
 		PCXI = TMP_1;
-		PSW = TMP_1<31..26>::PSW<25..24>::TMP_1<23..0>;
+		PSW = TMP_2<31..26>::PSW<25..24>::TMP_2<23..7>::CDC<6..0>;
    		}
 	otawa_sem	= "BRANCH(A11); LOAD_CONTEXT;"
 

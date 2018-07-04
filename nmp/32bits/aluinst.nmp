@@ -1550,16 +1550,22 @@ op maddsu32_reg(c: reg_d, d: reg_d, a: reg_d, b: reg_d)
 		stickyAdvancedOverflow();
 	}
 
-op madd64_const(c: reg_e,a: reg_d, d: reg_e,const:const9)
+op madd64_const(c:EXT_DATA_REG, a:reg_d, d:EXT_DATA_REG,const:const9)
 	syntax	= format("madd %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, const.syntax)
 	image = format("%s %s 011 %s %s 00010011", c.image, d.image, const.image, a.image)
 	action = {
-		sign_ext9to32(const, TMP_1);
-		result64 = d + coerce(card(32), a) * TMP_1;
-		c = result64;
-		overflow64(result64);
+		sign_ext9to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		TMP64_1 = D[d.h];
+		TMP64_2 = D[d.l];
+		TMP64_1 = (TMP64_1 << 32) | TMP64_2;
+		TMP64_3s<63..0> = TMP64_1<63..0>;  
+		result64s = TMP64_3s + TMP64_2s * TMP_1;
+		D[c.h] = result64s<63..32>;
+		D[c.l] = result64s<31..0>;
+		overflow64(result64s);
 		stickyOverflow();
-		advancedOverflow64(result64);
+		advancedOverflow64(result64s);
 		stickyAdvancedOverflow();
 	}
 
@@ -1579,12 +1585,14 @@ op madd32_const(c: reg_d,a: reg_d, d: reg_d,const:const9)
 	syntax	= format("madd %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, const.syntax)
 	image = format("%s %s 001 %s %s 00010011", c.image, d.image, const.image, a.image)
 	action = {
-		sign_ext9to32(const, TMP_1);
-		result64 = d + coerce(card(32), a) * TMP_1;
-		c = result64;
-		overflow(result64);
+		sign_ext9to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		sign_ext32to64(d, TMP64_3s);
+		result64s = TMP64_3s + TMP64_2s * TMP64_1s;
+		c = result64s<31..0>;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
 	}
 
@@ -1592,21 +1600,29 @@ op madd32_reg(c: reg_d, d: reg_d, a: reg_d, b: reg_d)
 	syntax	= format("madd %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, b.syntax)
 	image	= format("%s%s00001010%s%s00000011", c.image, d.image, b.image, a.image)
 	action	= { 
-		result64 = d + coerce(card(32), a) * coerce(card(32), b); 
-		c = result64;
-		overflow(result64);
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);
+		sign_ext32to64(d, TMP64_3s);			
+		result64s = TMP64_3s + TMP64_1s * TMP64_2s; 
+		c = result64s<31..0>;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
 	}
 	otawa_sem = "SCRATCH(D(0));"
 
-op madd_u_reg(c: reg_e, d: reg_e, a: reg_d, b: reg_d)
+op madd_u_reg(c:EXT_DATA_REG, d:EXT_DATA_REG, a: reg_d, b: reg_d)
 	syntax	= format("madd.u %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, b.syntax)
 	image	= format("%s%s01101000%s%s00000011", c.image, d.image, b.image, a.image)
 	action	= { 
-		result64 = d + coerce(card(32), a) * coerce(card(32), b);
-	 	c = result64;
+		TMP64_1 = coerce(card(32), a);
+		TMP64_2 = coerce(card(32), b);
+		TMP64_3 = D[d.h];
+		TMP64_4 = D[d.l];
+		result64 = TMP64_1 * TMP64_2 + (TMP64_3 << 32) + TMP64_4;
+	 	D[c.h] = result64<63..32>;
+	 	D[c.l] = result64<31..0>;
 	 	overflow64_u(result64);
 		stickyOverflow();
 		advancedOverflow64(result64);
@@ -1614,12 +1630,17 @@ op madd_u_reg(c: reg_e, d: reg_e, a: reg_d, b: reg_d)
 	 }
 	otawa_sem = "SCRATCH(D(0));"
 	
-op madd_u_const(c: reg_e, d: reg_e, a: reg_d,const:const9)
+op madd_u_const(c:EXT_DATA_REG, d:EXT_DATA_REG, a: reg_d,const:const9)
 	syntax	= format("madd.u %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, const.syntax)
 	image = format("%s %s 010 %s %s 00010011", c.image, d.image, const.image, a.image)
 	action = {
-		result64 = d + coerce(card(32), a) * coerce(card(32), const);
-		c = result64;
+		TMP64_1 = coerce(card(32), a);
+		TMP64_2 = coerce(card(32), const);
+		TMP64_3 = D[d.h];
+		TMP64_3 = D[d.l];
+		result64 = TMP64_1 * TMP64_2 + (TMP64_3 << 32) + TMP64_4;		
+	 	D[c.h] = result64<63..32>;
+	 	D[c.l] = result64<31..0>;
 		overflow64_u(result64);
 		stickyOverflow();
 		advancedOverflow64(result64);
@@ -1642,8 +1663,8 @@ op divf(c: reg_d, a: reg_d, b: reg_d)
 	syntax = format("div.f %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX 01 %s %s %8b", c.image, 0x05, b.image, a.image, 0x4B)
 	action = {
-		denorm_to_zero(coerce(flots,a),fl0);
-		denorm_to_zero(coerce(flots,b),fl1);
+		denorm_to_zero(a,fl0);
+		denorm_to_zero(b,fl1);
 		isNan(a,tmp0);  
 		isNan(b,tmp1);
 		is_inf(a,tmp2);
@@ -1655,8 +1676,13 @@ op divf(c: reg_d, a: reg_d, b: reg_d)
 		else if(tmp4 && tmp5) then result = 0x7FC00008;
 		else 
 			preres=fl0/fl1;
-			denorm_to_zero(preres,norres);
-			result = coerce(int(32),norres);
+			float2double(fl0, TMPD_1);
+			float2double(fl1, TMPD_2);
+			TMPD_1 = TMPD_1 / TMPD_2;			
+			
+			denorm_to_zero_f(preres,norres);
+			//result = coerce(int(32),norres);
+			result = norres<31..0>;
 		endif; endif; endif;
 		c = result<31..0>;
 		
@@ -1665,17 +1691,17 @@ op divf(c: reg_d, a: reg_d, b: reg_d)
 		if( tmp1 || tmp0 || (c==0x7FC00008)) then setFI=1; else setFI=0; endif;
 		if (setFI==1) then FI=1; endif;
 		
-		if(norres >= 2**128) then setFV=1; else setFV=0; endif;
+		checkFV(norres, setFV); // if(norres >= 2**128) then setFV=1; else setFV=0; endif;
 		if (setFV==1) then FV=1; endif;
-		
+			
 		if(tmp4 && (~tmp2)) then setFZ=1; else setFZ=0; endif;
 		if(setFZ==1) then FZ=1; endif;
 		
 		fp_abs(preres,fl2);
-		if ( fl2 < 2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl2, setFU); // if ( fl2 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU==1) then FU=1; endif;
 		
-		if (preres!=coerce(flots,result)) then setFX=1; else setFX=0; endif;
+		checkFX(preres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
 		if ((setFX==1) && (setFI==0)) then FX=1; endif;
 		
 		if (setFI || setFV || setFZ || setFU || setFX) then FS=1; else FS=0; endif;
@@ -1707,19 +1733,29 @@ op ftoiz(c: reg_d, a: reg_d)
 	syntax = format("ftoiz %s, %s", c.syntax, a.syntax)
 	image = format("%s %8b XX 01 XXXX %s %8b", c.image, 0x13, a.image, 0x4B)
 	action = {
+		
+		TMPF_1<31..0> = a<31..0>;
+		TMPD_1 = TMPF_1;
+		TMP64_1s = (1 << 31) -1;
+		TMPD_2 = coerce(double,TMP64_1s);
+		TMP64_2s = 0 - (1 << 31);
+		TMPD_3 = coerce(double,TMP64_2s);
+		
+	
 		isNan(a,tmp1);
 		if(tmp1) then result = 0;
-		else if (coerce(flots,a)>(2**31 -1)) then result = 0x7FFFFFFF;
-		else if (coerce(flots,a)<-2**31) then result = 0x80000000;
-		else result = coerce(int(32),a);
+		else if (TMPD_1 > TMPD_2) then result = 0x7FFFFFFF;
+		else if (TMPD_1 < TMPD_3) then result = 0x80000000;
+		else 
+			result = coerce(int(32),TMPD_1);
 		endif; endif; endif;
 		c=result<31..0>;
 		
 		isNan(a,tmp0);
-		if((coerce(flots,a)>(2**31 -1)) || (coerce(flots,a)<-2**31) || tmp1) then setFI = 1; else setFI=0; endif;
+		if((TMPD_1 > TMPD_2) || (TMPD_1 < TMPD_3) || tmp1) then setFI = 1; else setFI=0; endif;
 		if(setFI) then FI=1; endif;
 		
-		if(coerce(flots,a)!=coerce(flots,result)) then setFX=1; else setFX = 0; endif;
+		if(TMPF_1 != coerce(flots,result)) then setFX=1; else setFX = 0; endif;
 		if(setFX && ~setFI) then FX=1; endif;
 		
 		if(setFI || setFX) then FS=1; else FS=0; endif;
@@ -1729,14 +1765,14 @@ op ftoq31(c: reg_d, a: reg_d, b: reg_d)
 	syntax = format("ftoq31 %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX 01 %s %s %8b", c.image, 0x11, b.image, a.image, 0x4B)
 	action = {
-		denorm_to_zero(coerce(flots,a),fl0);
+		denorm_to_zero(a,fl0);
 		isNan(a,tmp0);
 		if (tmp0 == 1) then result = 0;
 		else
 			preres = fl0*(2**(-b<8..0>));
 			if (preres > coerce(flots,0x7FFFFFFF)) then result = 0x7FFFFFFF;
 			else if(preres < -1.0) then result = 0x80000000;
-				else result = preres;
+				else result<31..0> = preres<31..0>;
 				endif;
 			endif;
 		endif;
@@ -1755,14 +1791,14 @@ op ftoq31z(c: reg_d, a: reg_d, b: reg_d)
 	syntax = format("ftoq31z %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX 01 %s %s %8b", c.image, 0x18, b.image, a.image, 0x4B)
 	action = {
-		denorm_to_zero(coerce(flots,a),fl0);
+		denorm_to_zero(a,fl0);
 		isNan(a,tmp0);
 		if (tmp0 == 1) then result = 0;
 		else
 			preres = fl0*(2**(-b<8..0>));
 			if (preres > coerce(flots,0x7FFFFFFF)) then result = 0x7FFFFFFF;
 			else if(preres < -1.0) then result = 0x80000000;
-				else result = preres;
+				else result<31..0> = preres<31..0>;
 				endif;
 			endif;
 		endif;
@@ -1826,8 +1862,10 @@ op itof(c: reg_d, a: reg_d)
 	image = format("%s %8b XX 01 XXXX %s %8b", c.image, 0x14, a.image, 0x4B)
 	action = {
 		fl0 = coerce(flots,coerce(int(32),a));
+		float2double(fl0, TMPD_1);
+		TMPD_2 = coerce(double, coerce(int(32), a));
 		c=fl0<31..0>;
-		if(fl0!=coerce(flots,coerce(int(32),a))) then setFX=1; else setFX=0; endif;
+		if(TMPD_1 != TMPD_2) then setFX=1; else setFX=0; endif;
 		if (setFX) then FX=1; FS=1; else FS=0; endif;
 	}
 
@@ -1835,9 +1873,9 @@ op maddf(c: reg_d, a: reg_d, b: reg_d, d:reg_d)
 	syntax = format("madd.f %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, b.syntax)
 	image = format("%s %s %4b XX 01 %s %s %8b", c.image, d.image, 0x06, b.image, a.image, 0x6B)
 	action = {
-		denorm_to_zero(coerce(flots,a),fl0);
-		denorm_to_zero(coerce(flots,b),fl1);
-		denorm_to_zero(coerce(flots,d),fl2);
+		denorm_to_zero(a,fl0);
+		denorm_to_zero(b,fl1);
+		denorm_to_zero(d,fl2);
 		isNan(a,tmp0);
 		isNan(b,tmp1);
 		isNan(d,tmp2);
@@ -1860,9 +1898,14 @@ op maddf(c: reg_d, a: reg_d, b: reg_d, d:reg_d)
 					else
 						if(((tmp0 && tmp3) || (tmp2 && tmp1)) && tmp4) then result = 0x7FC00001;
 						else
-							preres = (fl0*fl1)+fl2;
-							denorm_to_zero(preres,norres);
-							result = coerce(int(32),norres);
+							realres = (fl0*fl1)+fl2;
+							float2double(fl0, TMPD_1);
+							float2double(fl1, TMPD_2);
+							float2double(fl2, TMPD_3);
+							TMPD_1 = (TMPD_1 * TMPD_2) + TMPD_3; // precise results		
+							preres = TMPD_1;			
+							denorm_to_zero_f(preres,norres);
+							result = norres<31..0>;
 						endif;
 					endif;
 				endif;
@@ -1877,15 +1920,15 @@ op maddf(c: reg_d, a: reg_d, b: reg_d, d:reg_d)
 		if (tmp0 || tmp1 || tmp2 || result == 0x7FC00001 || result == 0x7FC00002) then setFI=1; else setFI=0; endif;
 		if (setFI) then FI=1; endif;
 		
-		if (norres >= 2**128) then setFV=1; else setFV=0; endif;
+		checkFV(norres, setFV); // if(norres >= 2**128) then setFV=1; else setFV=0; endif;
 		if(setFV) then FV=1; endif;
 		
 		fp_abs(preres,fl0);
-		if(fl0<2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl0, setFU); // if ( fl0 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU) then FU=1; endif;
 		
-		if(preres != coerce(flots,result)) then setFX=1; else setFX=0; endif;
-		if(setFX==1 && setFI==0) then FX=1; endif;
+		checkFX(realres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
+		if(setFX==1 && setFI==0) then FX=1; endif;		
 		
 		if (setFI || setFV || setFU || setFX) then FS=1; else FS = 0; endif;
 	}
@@ -1894,9 +1937,9 @@ op msubf(c: reg_d, a: reg_d, b: reg_d, d:reg_d)
 	syntax = format("msub.f %s, %s, %s, %s", c.syntax, d.syntax, a.syntax, b.syntax)
 	image = format("%s %s %4b XX 01 %s %s %8b", c.image, d.image, 0x07, b.image, a.image, 0x6B)
 	action = {
-		denorm_to_zero(coerce(flots,a),fl0);
-		denorm_to_zero(coerce(flots,b),fl1);
-		denorm_to_zero(coerce(flots,d),fl2);
+		denorm_to_zero(a,fl0);
+		denorm_to_zero(b,fl1);
+		denorm_to_zero(d,fl2);
 		isNan(a,tmp0);
 		isNan(b,tmp1);
 		isNan(d,tmp2);
@@ -1919,9 +1962,15 @@ op msubf(c: reg_d, a: reg_d, b: reg_d, d:reg_d)
 					else
 						if(((tmp0 && tmp3) || (tmp2 && tmp1)) && tmp4) then result = 0x7FC00001;
 						else
-							preres = (fl0*fl1)-fl2;
-							denorm_to_zero(preres,norres);
-							result = coerce(int(32),norres);
+							realres = fl2 - (fl0*fl1); // substract from Rd
+							float2double(fl0, TMPD_1);
+							float2double(fl1, TMPD_2);
+							float2double(fl2, TMPD_3);
+							TMPD_1 = TMPD_3 - (TMPD_1 * TMPD_2);
+							preres = TMPD_1;								
+							denorm_to_zero_f(preres,norres);
+							//result = coerce(int(32),norres);
+							result = norres<31..0>;
 						endif;
 					endif;
 				endif;
@@ -1936,14 +1985,14 @@ op msubf(c: reg_d, a: reg_d, b: reg_d, d:reg_d)
 		if (tmp0 || tmp1 || tmp2 || result == 0x7FC00001 || result == 0x7FC00002) then setFI=1; else setFI=0; endif;
 		if (setFI) then FI=1; endif;
 		
-		if (norres >= 2**128) then setFV=1; else setFV=0; endif;
+		checkFV(norres, setFV); // if(norres >= 2**128) then setFV=1; else setFV=0; endif;
 		if(setFV) then FV=1; endif;
 		
 		fp_abs(preres,fl0);
-		if(fl0<2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl0, setFU); // if ( fl0 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU) then FU=1; endif;
 		
-		if(preres != coerce(flots,result)) then setFX=1; else setFX=0; endif;
+		checkFX(realres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
 		if(setFX==1 && setFI==0) then FX=1; endif;
 		
 		if (setFI || setFV || setFU || setFX) then FS=1; else FS = 0; endif;
@@ -1955,14 +2004,15 @@ op q31tof(c: reg_d, a: reg_d, b: reg_d)
 	image = format("%s %8b XX 01 %s %s %8b", c.image, 0x15, b.image, a.image, 0x4B)
 	action = {
 		preres = coerce(flots,a)*(2**(b<8..0>));
+		TMPD_1 = preres; // FIXME
 		result = coerce(int(32),preres);
 		c=result<31..0>;
 		
 		fp_abs(preres,fl0);
-		if(fl0<2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl0, setFU); // if ( fl0 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU) then FU=1; endif;
 		
-		if(preres != coerce(flots,result)) then setFX=1; else setFX=0; endif;
+		checkFX(preres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
 		if(setFX==1) then FX=1; endif;
 		
 		if (setFU || setFX) then FS=1; else FS = 0; endif;
@@ -1999,21 +2049,25 @@ op subf(c: reg_d, a: reg_d, d: reg_d)
 	syntax = format("sub.f %s, %s, %s", c.syntax, d.syntax, a.syntax)
 	image = format("%s %s 0011 XX 01 XXXX %s %8b", c.image, d.image, a.image, 0x6B)
 	action = {
-		denorm_to_zero(coerce(flots,a),fl0);
-		denorm_to_zero(coerce(flots,d),fl1);
+		denorm_to_zero(a,fl0);
+		denorm_to_zero(d,fl1);
 		isNan(a,tmp0);  
 		isNan(d,tmp1);
 		is_pos_inf(a,tmp2);
 		is_neg_inf(d,tmp3);
 		is_pos_inf(d,tmp4);
 		is_neg_inf(a,tmp5);
-		if(tmp0 || tmp1==1) then result=0x7FC00001;
+		if(tmp0 || tmp1==1) then result = 0x7FC00001;
 		else if(tmp2 && tmp3) then result = 0x7FC00001;
 		else if(tmp4 && tmp5) then result = 0x7FC00001;
 		else 
-			preres=fl0-fl1;
-			denorm_to_zero(preres,norres);
-			result = coerce(int(32),norres);
+			preres=fl1-fl0; // substract a from d, i.e. D[d] - D[a]
+			float2double(fl0, TMPD_1);
+			float2double(fl1, TMPD_2);
+			TMPD_1 = TMPD_2 - TMPD_1;				
+			denorm_to_zero_f(preres,norres);
+			//result = coerce(int(32),norres);
+			result = norres<31..0>;
 		endif; endif; endif;
 		c = result<31..0>;
 		
@@ -2022,17 +2076,18 @@ op subf(c: reg_d, a: reg_d, d: reg_d)
 		if( tmp1 || tmp0) then setFI=1; else setFI=0; endif;
 		if (setFI==1) then FI=1; endif;
 		
-		if(norres >= 2**128) then setFV=1; else setFV=0; endif;
+		checkFV(norres, setFV); // if(norres >= 2**128) then setFV=1; else setFV=0; endif;
 		if (setFV==1) then FV=1; endif;
 		
 		fp_abs(preres,fl2);
-		if ( fl2 < 2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl2, setFU); // if ( fl2 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU==1) then FU=1; endif;
 		
-		if (preres!=coerce(flots,result)) then setFX=1; else setFX=0; endif;
+		checkFX(preres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
 		if ((setFX==1) && (setFI==0)) then FX=1; endif;
 		
 		if (setFI || setFV || setFU || setFX) then FS=1; else FS=0; endif;
+
 	}
 
 op updfl(a: reg_d)
@@ -2063,18 +2118,22 @@ op cmpf(c: reg_d, a: reg_d, b: reg_d)
 	syntax = format("cmp.f %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s 00000000 XX 01 %s %s %8b", c.image, b.image, a.image,0x4B)
 	action = {
-		c<0..0> = fl_lt(coerce(flots,a),coerce(flots,b));
-		c<1..1> = fl_eq(coerce(flots,a),coerce(flots,b));
-		c<2..2> = fl_gt(coerce(flots,a),coerce(flots,b));
+		TMP_1 = 0;
+		TMPF_1<31..0> = a;
+		TMPF_2<31..0> = b; 
+		TMP_1<0..0> = fl_lt(TMPF_1,TMPF_2);
+		TMP_1<1..1> = fl_eq(TMPF_1,TMPF_2);
+		TMP_1<2..2> = fl_gt(TMPF_1,TMPF_2);
 		isNan(a,tmp0);
 		isNan(b,tmp1);
-		c<3..3> = tmp0 || tmp1;
-		c<4..4> = is_denorm(a);
-		c<5..5> = is_denorm(b);
+		TMP_1<3..3> = tmp0 || tmp1;
+		TMP_1<4..4> = is_denorm(a);
+		TMP_1<5..5> = is_denorm(b);
 		isSnan(a,tmp2);
 		isSnan(b,tmp3);
 		if(tmp2 || tmp3) then setFI=1; else setFI=0; endif;
 		if(setFI==1) then FI=1; FS=1; else FS=0; endif;
+		c = TMP_1;
 	}	
 	
 
@@ -2082,8 +2141,8 @@ op addf(c: reg_d, d: reg_d, a: reg_d)
 	syntax = format("add.f %s, %s, %s", c.syntax, d.syntax, a.syntax)
 	image = format("%s %s %4b XX 01 XXXX %s %8b", c.image, d.image, 0x02, a.image,0x6B)
 	action = { 
-		denorm_to_zero(coerce(flots,a),fl0);
-		denorm_to_zero(coerce(flots,d),fl1);
+		denorm_to_zero(a,fl0);
+		denorm_to_zero(d,fl1);
 		isNan(a,tmp0);  
 		isNan(d,tmp1);
 		is_pos_inf(a,tmp2);
@@ -2095,8 +2154,11 @@ op addf(c: reg_d, d: reg_d, a: reg_d)
 		else if(tmp4 && tmp5) then result = 0x7FC00001;
 		else 
 			preres=fl0+fl1;
-			denorm_to_zero(preres,norres);
-			result = coerce(int(32),norres);
+			float2double(fl0, TMPD_1);
+			float2double(fl1, TMPD_2);
+			TMPD_1 = TMPD_1 + TMPD_2;				
+			denorm_to_zero_f(preres,norres);
+			result = norres<31..0>;
 		endif; endif; endif;
 		c = result<31..0>;
 		
@@ -2105,14 +2167,14 @@ op addf(c: reg_d, d: reg_d, a: reg_d)
 		if( tmp1 || tmp0) then setFI=1; else setFI=0; endif;
 		if (setFI==1) then FI=1; endif;
 		
-		if(norres >= 2**128) then setFV=1; else setFV=0; endif;
+		checkFV(norres, setFV); // if(norres >= 2**128) then setFV=1; else setFV=0; endif;
 		if (setFV==1) then FV=1; endif;
 		
 		fp_abs(preres,fl2);
-		if ( fl2 < 2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl2, setFU); // if ( fl2 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU==1) then FU=1; endif;
 		
-		if (preres!=coerce(flots,result)) then setFX=1; else setFX=0; endif;
+		checkFX(preres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
 		if ((setFX==1) && (setFI==0)) then FX=1; endif;
 		
 		if (setFI || setFV || setFU || setFX) then FS=1; else FS=0; endif;
@@ -2123,8 +2185,8 @@ op mulf(c: reg_d, a: reg_d, b: reg_d, pad: card(4))
 	syntax = format("mul.f %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%4b00000100%4b%4b%4b01001011", c.image, pad, b.image, a.image)
 	action = { 
-		denorm_to_zero(coerce(flots,a),fl0);
-		denorm_to_zero(coerce(flots,b),fl1);
+		denorm_to_zero(a,fl0);
+		denorm_to_zero(b,fl1);
 		isNan(a,tmp0);  
 		isNan(b,tmp1);
 		if (tmp0 || tmp1) then result = 0x7FC00002;
@@ -2137,9 +2199,13 @@ op mulf(c: reg_d, a: reg_d, b: reg_d, pad: card(4))
 			else
 				if (tmp2 && tmp3) then result = 0x7FC00002;
 				else
-					preres = fl0*fl1;
-					denorm_to_zero(preres,norres);
-					result = coerce(int(32),norres);
+					realres = fl0*fl1;
+					float2double(fl0, TMPD_1);
+					float2double(fl1, TMPD_2);
+					TMPD_1 = TMPD_1 * TMPD_2;
+					preres = TMPD_1;					
+					denorm_to_zero_f(preres,norres);
+					result = norres<31..0>;
 				endif;
 			endif;
 		endif;
@@ -2150,14 +2216,14 @@ op mulf(c: reg_d, a: reg_d, b: reg_d, pad: card(4))
 		if (tmp0 || tmp1 || result == 0x7FC00002) then setFI=1; else setFI=0; endif;
 		if (setFI) then FI=1; endif;
 		
-		if (norres >= 2**128) then setFV=1; else setFV=0; endif;
+		checkFV(norres, setFV); // if(norres >= 2**128) then setFV=1; else setFV=0; endif;
 		if(setFV) then FV=1; endif;
 		
 		fp_abs(preres,fl0);
-		if(fl0<2**(-126)) then setFU=1; else setFU=0; endif;
+		checkFU(fl0, setFU); // if ( fl0 < 2**(-126)) then setFU=1; else setFU=0; endif;
 		if (setFU) then FU=1; endif;
 		
-		if(preres != coerce(flots,result)) then setFX=1; else setFX=0; endif;
+		checkFX(realres, TMPD_1, setFX); // if (preres<31..0> != result<31..0>) then setFX=1; else setFX=0; endif;
 		if(setFX==1 && setFI==0) then FX=1; endif;
 		
 		if (setFI || setFV || setFU || setFX) then FS=1; else FS = 0; endif;
@@ -2457,20 +2523,20 @@ op abs_reg (c:reg_d,b:reg_d,foo1:card(4),foo2:card(4))
 	syntax = format("abs %s,%s", c.syntax, b.syntax)
 	image = format("%s00011100%4b%s%4b00001011",c.image,foo1,b.image,foo2)
 	action = 	{
-			if (coerce(int(32),b) >= 0)
-			then
-				result64 = coerce(int(64),b);
-			else
-				TMP64_1 = 0;
-				result64 = coerce(int(64),TMP64_1)-coerce(int(64),b);
-			endif;
-			overflow(result64);
-			stickyOverflow();
-			advancedOverflow(result64);
-			stickyAdvancedOverflow();
-			c = result64<0..31>;
-			}
-	
+		sign_ext32to64(b, TMP64_1s);
+		if (TMP64_1s >= 0) then
+			result64s = TMP64_1s;
+		else
+			TMP64_2s = 0;
+			result64s = TMP64_2s - TMP64_1s;
+		endif;
+		overflow(result64s);
+		stickyOverflow();
+		advancedOverflow(result64s);
+		stickyAdvancedOverflow();
+		c = result64s<31..0>;
+		}
+
 
 op absdif = absdif_reg|absdif_const9|absdifs_reg|absdifs_const9|absdif_b|absdif_h|absdifs_h
 
@@ -2654,26 +2720,29 @@ op add_reg (c:reg_d, a:reg_d, b:reg_d, foo:card(4))
    syntax = format("add %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s00000000%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		result64 = coerce(int(64),a)+coerce(int(64),b);
-		overflow(result64);
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);   
+		result64s = TMP64_1s + TMP64_2s;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
  		}
  	otawa_sem = "SCRATCH(PSW); ADD(D(0), D(1), D(2));"
 
-op add_const9 (c:reg_d, a:reg_d, const:const9)
+op add_const9 (c:reg_d, a:reg_d, const:sign9)
    syntax = format("add %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format("%s0000000%s%s10001011",c.image,const.image,a.image)
    action = 	{
-		sign_ext9to32(const, TMP_1);
-		result64 = coerce(int(64),a)+coerce(int(64),TMP_1);
-		overflow(result64);
+		sign_ext9to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		result64s = TMP64_1s + TMP64_2s;		
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
  		}
  	otawa_sem = "SCRATCH(PSW); SETI(T1, S9(2)); ADD(D(0), D(1), T1);"
 
@@ -2690,13 +2759,16 @@ op addc_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
    syntax = format("addc %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s00000101%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		result64 = coerce(int(64),a)+coerce(int(64),b)+coerce(int(64),CFLAG);
-		carry(result64);
-		overflow(result64);
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);
+		TMP64_3s = CFLAG;
+		result64s = TMP64_1s + TMP64_2s + TMP64_3s;
+		carry2(TMP64_2s, TMP64_1s, TMP64_3s);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -2704,43 +2776,48 @@ op addc_const9(c:reg_d,a:reg_d,const:const9)
    syntax = format("addc %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format("%s0000101%s%s10001011",c.image,const.image,a.image)
    action = 	{
-		zero_ext32(const,TMP_1,9);
-		result64 = coerce(int(64),a)+coerce(int(64),TMP_1)+coerce(int(64),CFLAG);
-		carry(result64);
-		overflow(result64);
+		sign_ext9to64(const,TMP64_1s);
+		sign_ext32to64(a,TMP64_2s);
+		TMP64_3s = CFLAG;
+		result64s = TMP64_1s + TMP64_2s + TMP64_3s;
+		carry2(TMP64_2s, TMP64_1s, TMP64_3s);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
-op addi (c:reg_d, const:card(16), a:reg_d)
+op addi (c:reg_d, const:int(16), a:reg_d)
    syntax = format("addi %s,%s,%d",c.syntax,a.syntax,const)
    image = format("%s%16b%s00011011",c.image,const,a.image)
    action = 	{
-		sign_ext16to32(const, TMP_1);
-		result64 = coerce(int(64),a)+coerce(int(64),TMP_1);
-		overflow(result64);
+		sign_ext16to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		result64s = TMP64_1s + TMP64_2s;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, S16(1)); ADD(D(0), D(2), T1);"
 
-op addih (c:reg_d, const:const16, a:reg_d)
+op addih (c:reg_d, const:sign16, a:reg_d)
      syntax = format("addih %s,%s,%s",c.syntax,a.syntax,const.syntax)
      image = format("%s%s%s10011011",c.image,const.image,a.image)
      action = 	{
 		zero_ext32(const,TMP_1,16);
 		TMP_1 = TMP_1 << 16;
-		result64 = coerce(int(64),a)+coerce(int(64),TMP_1);
-		overflow(result64);
+		sign_ext32to64(TMP_1, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);		
+		result64s = TMP64_2s+TMP64_1s;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, U16(1)); SETI(T2, 16); SHL(T1, T1, T2); ADD(D(0), D(2), T1);"
 
@@ -2837,7 +2914,7 @@ op addsh_u (c:reg_d,b:reg_d,a:reg_d,foo:card(4))
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
-op addsc_a (c: reg_a, a: reg_a, b: reg_a, foo:card(2), n: card(2))
+op addsc_a (c: reg_a, a: reg_d, b: reg_a, foo:card(2), n: card(2))
    syntax = format("addsc.a %s,%s,%s,%d",c.syntax,b.syntax,a.syntax,n)
    image = format("%s01100000%2b%2b%s%s00000001",c.image,foo,n,b.image,a.image)
    action = 	{
@@ -2846,11 +2923,11 @@ op addsc_a (c: reg_a, a: reg_a, b: reg_a, foo:card(2), n: card(2))
 		}
 	otawa_sem = "SETI(T1, U2(4)); SHL(T2, A(1), T1); ADD(A(0), A(2), T2);"
 
-op addsc_at (c:reg_a, a:reg_a, b:reg_a, foo:card(4))
+op addsc_at (c:reg_a, a:reg_d, b:reg_a, foo:card(4))
    syntax = format("addsc.at %s,%s,%s",c.syntax,b.syntax,a.syntax)
    image = format("%s01100010%4b%s%s00000001",c.image,foo,b.image,a.image)
    action = 	{
-		TMP_1 = a << 3;
+		TMP_1 = a >> 3;
 		c = b+TMP_1;
 		c = c & 0xFFFFFFFC;
 	}
@@ -2860,13 +2937,15 @@ op addx_reg (c:reg_d, a:reg_d, b:reg_d, foo:card(4))
    syntax = format("addx %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s00000100%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		result64 = coerce(int(64),a)+coerce(int(64),b);
-		carry(result64);
-		overflow(result64);
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s); 
+		result64s = TMP64_1s + TMP64_2s;   
+		carry2(a, b, 0);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 	}
 	otawa_sem = "SCRATCH(PSW); ADD(D(0), D(1), D(2));"
 
@@ -2874,14 +2953,16 @@ op addx_const9 (c:reg_d, a:reg_d, const:const9)
    syntax = format("addx %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format("%s0000100%s%s10001011",c.image,const.image,a.image)
    action = 	{
-		sign_ext9to32(const, TMP_1);
-		result64 = coerce(int(64),a)+coerce(int(64),TMP_1);
-		carry(result64);
-		overflow(result64);
+		sign_ext9to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s); 
+		result64s = TMP64_1s + TMP64_2s;
+   		sign_ext9to32(const, TMP_1);
+		carry2(a, TMP_1, 0);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 	}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, S9(2)); ADD(D(0), D(1), T1);"
 
@@ -2889,55 +2970,59 @@ op cadd_reg (a:reg_d, b:reg_d, c:reg_d, d:reg_d, foo:card(4))
    syntax = format("cadd %s,%s,%s,%s",c.syntax,d.syntax,a.syntax,b.syntax)
    image = format("%s%s0000%4b%s%s00101011",c.image,d.image,foo,b.image,a.image)
    action = 	{
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);    
 		if (d != 0)
 		then
-			result64 = coerce(int(64),a)+coerce(int(64),b);
+			result64s = TMP64_1s + TMP64_2s;
 		else
-			result64 = coerce(int(64),a);
+			result64s = TMP64_1s;
 		endif;
-		overflow(result64);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
-op cadd_const9 (c:reg_d,d:reg_d,a:reg_d,const:const9)
+op cadd_const9 (c:reg_d,d:reg_d,a:reg_d,const:sign9)
    syntax = format ("cadd %s,%s,%s,%s",c.syntax,d.syntax,a.syntax,const.syntax)
    image = format("%s%s000%s%s10101011",c.image,d.image,const.image,a.image)
    action = 	{
+		sign_ext9to64(const,TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);   
 		if (d != 0)
 		then
-			sign_ext9to32(const,TMP_1);
-			result64 = coerce(int(64),a)+coerce(int(64),TMP_1);
+			result64s = TMP64_1s + TMP64_2s;
 		else
-			result64 = coerce(int(64),a);
+			result64s = TMP64_2s;
 		endif;
-		overflow(result64);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
-op caddn_const9 (c:reg_d,d:reg_d,a:reg_d,const:const9)
+op caddn_const9 (c:reg_d,d:reg_d,a:reg_d,const:sign9)
    syntax = format ("caddn %s,%s,%s,%s",c.syntax,d.syntax,a.syntax,const.syntax)
    image = format("%s%s001%s%s10101011",c.image,d.image,const.image,a.image)
    action = 	{
+		sign_ext9to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);    
 		if (d == 0)
 		then
-			sign_ext9to32(const,TMP_1);
-			result64 = coerce(int(64),a)+coerce(int(64),TMP_1);
+			result64s = TMP64_1s + TMP64_2s;
 		else
-			result64 = coerce(int(64),a);
+			result64s = TMP64_2s;
 		endif;
-		overflow(result64);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -2945,17 +3030,19 @@ op caddn_reg (a:reg_d,b:reg_d,c:reg_d,d:reg_d,foo:card(4))
    syntax = format("caddn %s,%s,%s,%s",c.syntax,d.syntax,a.syntax,b.syntax)
    image = format("%s%s0001%4b%s%s00101011",c.image,d.image,foo,b.image,a.image)
    action = 	{
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);      
 		if (d == 0)
 		then
-			result64 = coerce(int(64),a)+coerce(int(64),b);
+			result64s = TMP64_1s + TMP64_2s;
 		else
-			result64 = coerce(int(64),a);
+			result64s = TMP64_2s;
 		endif;
-		overflow(result64);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -3232,39 +3319,39 @@ op nand_t(c:reg_d, a:reg_d, pos1:pos, b:reg_d, pos2:pos)
 // imask instructions
 op imask = imask_1|imask_2|imask_3|imask_4
 
-op imask_1 (c:reg_e, const:card(4), pos:card(5), width:card(5), foo:card(4))
+op imask_1 (c:EXT_DATA_REG, const:card(4), pos:card(5), width:card(5), foo:card(4))
    syntax = format("imask %s,#%d,#%d,#%d",c.syntax,const,pos,width)
    image = format("%s%5b01%5b%4b%4b10110111",c.image,pos,width,const,foo)
    action = 	{
-		c<63..32> = (((2**width)-1)<<pos);
-		c<31..0> = const<<pos;
+		D[c.h] = (((1 << width)-1)<<pos);
+		D[c.l] = const<<pos;
 		}
 	otawa_sem = "SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
-op imask_2 (c:reg_e,const:card(4),d:reg_d,width:card(5),foo:card(4))
+op imask_2 (c:EXT_DATA_REG,const:card(4),d:reg_d,width:card(5),foo:card(4))
    syntax = format("imask %s,#%d,%s,#%d",c.syntax,const,d.syntax,width)
    image = format("%s%s001%5b%4b%4b11010111",c.image,d.image,width,const,foo)
    action = 	{
-		c<63..32> = (((2**width)-1)<<(d<4..0>));
-		c<31..0> = const<<(d<4..0>);
+		D[c.h] = (((1 << width)-1)<<(d<4..0>));
+		D[c.l] = const<<(d<4..0>);
 		}
 	otawa_sem = "SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
-op imask_3 (c:reg_e,pos:card(5),b:reg_d,width:card(5),foo:card(4))
+op imask_3 (c:EXT_DATA_REG,pos:card(5),b:reg_d,width:card(5),foo:card(4))
    syntax = format("imask %s,%s,#%d,#%d",c.syntax,b.syntax,pos,width)
    image = format("%s%5b01%5b%s%4b00110111",c.image,pos,width,b.image,foo)
    action = 	{
-		c<63..32> = (((2**width)-1)<<pos);
-		c<31..0> = (b<31..0>)<<pos;
+		D[c.h] = (((1 << width)-1)<<pos);
+		D[c.l] = (b<31..0>)<<pos;
 		}
 	otawa_sem = "SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
-op imask_4 (c:reg_e,b:reg_d,d:reg_d,width:card(5),foo:card(4))
+op imask_4 (c:EXT_DATA_REG,b:reg_d,d:reg_d,width:card(5),foo:card(4))
    syntax = format("imask %s,%s,%s,#%d",c.syntax,b.syntax,d.syntax,width)
    image = format("%s%s001%5b%s%4b01010111",c.image,d.image,width,b.image,foo)
    action = 	{
-		c<63..32> = (((2**width)-1)<<(d<4..0>));
-		c<31..0> = (b<31..0>)<<(d<4..0>);
+		D[c.h] = (((1 << width)-1)<<(d<4..0>));
+		D[c.l] = (b<31..0>)<<(d<4..0>);
 		}
 	otawa_sem = "SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
@@ -3299,7 +3386,7 @@ op dextr_pos (c:reg_d,a:reg_d,b:reg_d,pos:card(5),foo:card(5))
 // div instructions
 op div = dvadj|dvinit|dvstep|divs|divu
 
-op divs(c:reg_e, a:reg_d, b:reg_d)
+op divs(c:EXT_DATA_REG, a:reg_d, b:reg_d)
 	syntax = format("div %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX 01 %s %s %8b", c.image, 0x20, b.image, a.image, 0x4B)
 	action = {
@@ -3318,18 +3405,20 @@ op divs(c:reg_e, a:reg_d, b:reg_d)
 				quotient = 0x7FFFFFFF;
 				reste = 0x00000000;
 			else
-				reste = dividende % diviseur;
-				quotient = (dividende - reste)/diviseur;
+				TMP_6_i32 = a;
+				TMP_7_i32 = b;
+				reste = TMP_6_i32 % TMP_7_i32;
+				quotient = (TMP_6_i32 - reste)/TMP_7_i32;
 			endif;
 		endif;
-		c<31..0> = quotient;
-		c<63..32> = reste;		
 		if((b==0) || ((b==0xFFFFFFFF) && (a == 0x80000000))) then VFLAG = 1; else VFLAG = 0; endif;
 		stickyOverflow();	
 		AVFLAG = 0;
+		D[c.l] = quotient;
+		D[c.h] = reste;				
 	}
 
-op divu(c:reg_e, a:reg_d, b:reg_d)
+op divu(c:EXT_DATA_REG, a:reg_d, b:reg_d)
 	syntax = format("div.u %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX 01 %s %s %8b", c.image, 0x21, b.image, a.image, 0x4B)
 	action = {
@@ -3342,8 +3431,8 @@ op divu(c:reg_e, a:reg_d, b:reg_d)
 			reste = dividende % diviseur;
 			quotient = (dividende - reste)/diviseur;
 		endif;
-		c<31..0> = quotient;
-		c<63..32> = reste;
+		D[c.l] = quotient;
+		D[c.h] = reste;		
 		if(b==0)then VFLAG=1; else VFLAG = 0; endif;
 		stickyOverflow();
 		AVFLAG = 0;
@@ -3785,11 +3874,16 @@ op extr_pos (c:reg_d,a:reg_d,pos:card(5),width:width5,foo:card(4))
    image = format("%s%5b10%s%4b%s00110111",c.image,pos,width.image,foo,a.image)
    action = 	{
 		TMP_1<4..0> = pos<4..0>;
-		TMP_1<31..5> = 0x0000000;
+		TMP_1<31..5> = 0x0000000	;
 		TMP_2<4..0> = width<4..0>;
 		TMP_2<31..5> = 0x0000000;
 		TMP_3 = a >> TMP_1;
-		c = coerce(int(32),TMP_3<(TMP_2-1)..0>);
+		if (TMP_3<TMP_2-1..TMP_2-1> == 1) then
+			TMP_3<31..TMP_2-1> = 0xFFFFFFFF;
+		else
+			TMP_3<31..TMP_2-1> = 0x00000000;
+		endif;
+		c = TMP_3;
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
@@ -3842,7 +3936,9 @@ op ge_reg (c:reg_d,b:reg_d,a:reg_d,foo:card(4))
    syntax = format("ge %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s00010100%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		if (a >= b)
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);   
+		if (TMP64_1s >= TMP64_2s)
 		then
 			c = 1;
 		else
@@ -3851,12 +3947,13 @@ op ge_reg (c:reg_d,b:reg_d,a:reg_d,foo:card(4))
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
-op ge_const9 (c:reg_d,a:reg_d,const:const9)
+op ge_const9 (c:reg_d,a:reg_d,const:sign9)
    syntax = format ("ge %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format ("%s0010100%s%s10001011",c.image,const.image,a.image)
    action = 	{
-		sign_ext9to32(const,TMP_1);
-		if (a >= TMP_1)
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext9to64(const, TMP64_2s);   		
+		if (TMP64_1s >= TMP64_2s)
 		then
 			c = 1;
 		else
@@ -3912,14 +4009,9 @@ op insert_reg (c:reg_d,d:reg_e,b:reg_d,a:reg_d,foo:card(5))
    image = format ("%s%s000%5b%s%s00010111",c.image,d.image,foo,b.image,a.image)
    action = 	{
 		TMP_1 = d<36..32>;
-		TMP_2 = (2**TMP_1)-1;
+		TMP_2 = (1<<TMP_1)-1;
 		TMP_2 = TMP_2 << d<4..0>;
-		if ( (a & (~TMP_2)) | ( (b<<d<4..0>) & TMP_1))
-		then
-			c = 1;
-		else
-			c = 0;
-		endif;
+		c = (a & (~TMP_2)) | ( (b<<d<4..0>) & TMP_1);
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
@@ -3928,15 +4020,10 @@ op insert_width (c:reg_d,d:reg_d,b:reg_d,a:reg_d,width:width5)
     image = format ("%s%s000%s%s%s01010111",c.image,d.image,width.image,b.image,a.image)
     action = 	{
 		TMP_1 = width;
-		TMP_2 = (2**TMP_1)-1;
+		TMP_2 = (1<<TMP_1)-1;
 		TMP_2 = TMP_2 << d<4..0>;
-		if ( (a & (~TMP_2)) | ( (b<<d<4..0>) & TMP_2))
-		then
-			c = 1;
-		else
-			c = 0;
-		endif;
-		}
+		c = (a & (~TMP_2)) | ( (b<<d<4..0>) & TMP_2);
+	}
 	otawa_sem = "SCRATCH(D(0));"
 
 op insert_pos (c:reg_d,b:reg_d,a:reg_d,width:width5,pos1:pos)
@@ -3945,15 +4032,10 @@ op insert_pos (c:reg_d,b:reg_d,a:reg_d,width:width5,pos1:pos)
     action = 	{
 		TMP_1 = pos1;
 		TMP_2 = width;
-		TMP_3 = (2**TMP_2)-1;
+		TMP_3 = (1<<TMP_2)-1;
 		TMP_3 = TMP_3 << TMP_1;
-		if ( (a & (~TMP_3)) | ( (b<<TMP_1) & TMP_3))
-		then
-			c = 1;
-		else
-			c = 0;
-		endif;
-		}
+		c = (a & (~TMP_3)) | ( (b<<TMP_1) & TMP_3);
+	}
 	otawa_sem = "SCRATCH(D(0));"
 
 op insert_const4 (c:reg_d,a:reg_d,d:reg_e,const:const4,foo:card(5))
@@ -3962,15 +4044,10 @@ op insert_const4 (c:reg_d,a:reg_d,d:reg_e,const:const4,foo:card(5))
    action = 	{
 		zero_ext32(const,TMP_1,4);
 		TMP_2 = d<36..32>;
-		TMP_3 = (2**TMP_2)-1;
+		TMP_3 = (1<<TMP_2)-1;
 		TMP_3 = TMP_3 << d<4..0>;
-		if ( (a & (~TMP_3)) | ( (TMP_1<<d<4..0>) & TMP_3))
-		then
-			c = 1;
-		else
-			c = 0;
-		endif;
-		}
+		c = (a & (~TMP_3)) | ( (TMP_1<<d<4..0>) & TMP_3);
+	}
 	otawa_sem = "SCRATCH(D(0));"
 
 op insert_const4_width (c:reg_d,a:reg_d,d:reg_d,const:const4,width:width5)
@@ -3979,25 +4056,20 @@ op insert_const4_width (c:reg_d,a:reg_d,d:reg_d,const:const4,width:width5)
    action = 	{
 		zero_ext32(const,TMP_1,4);
 		TMP_2 = width;
-		TMP_3 = (2**TMP_2)-1;
+		TMP_3 = (1<<TMP_2)-1;
 		TMP_3 = TMP_3 << d<4..0>;
-		if ( (a & (~TMP_3)) | ( (TMP_1<<d<4..0>) & TMP_3))
-		then
-			c = 1;
-		else
-			c = 0;
-		endif;
+		c = (a & (~TMP_3)) | ( (TMP_1<<d<4..0>) & TMP_3);
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
-op insert_const4_pos (c:reg_d,a:reg_d,const:const4,width:width5,pos1:pos)
+op insert_const4_pos (c:reg_d,a:reg_d,const:const4,width:width5,pos1:pos) // insert target_reg,source_reg,const,pos,size
    syntax =  format ("insert %s,%s,%s,%s,%s",c.syntax,a.syntax,const.syntax,pos1.syntax,width.syntax)
    image = format ("%s%5b00%s%4b%s10110111",c.image,pos1.image,width.image,const.image,a.image)
    action = 	{
 		zero_ext32(const,TMP_1,4);
 		TMP_2 = width;
 		TMP_3 = pos1;
-		TMP_4 = (2**TMP_2)-1;
+		TMP_4 = (1<<TMP_2)-1; // (1 << width) -1 will make width-long 1s
 		TMP_4 = TMP_4 << TMP_3;
 		c = (a & (~TMP_4)) | ( (TMP_1<<TMP_3) & TMP_4);
 		}
@@ -4031,12 +4103,12 @@ op insn_t (c:reg_d,pos1:pos,pos2:pos,a:reg_d,b:reg_d)
 // mov instructions
 op mov = mov_reg|mov_const32|mov_const64|mov_reg64|mov_rr64|mov_a|mov_aa|mov_d|movh|mov_u
 
-op mov_reg (c:reg_d, b:reg_d, foo1:card(4), foo2:card(4))
-    syntax = format("mov %s,%s",c.syntax,b.syntax)
-    image = format("%s00011111%4b%s%4b00001011",c.image,foo1,b.image,foo2)
-    action = 	{
+op mov_reg (c:reg_d, b:reg_d)
+	syntax = format("mov %s,%s",c.syntax,b.syntax)
+	image = format("%4b %8b XXXX %4b XXXX %8b", c.image, 0x1F, b.image, 0x0B)
+	action = 	{
 		c = b;
-		}
+	}
 	otawa_sem = "SETI(D(0), D(1));"
 
 op mov_const32 (c:reg_d, const:const16, foo:card(4))
@@ -4048,28 +4120,31 @@ op mov_const32 (c:reg_d, const:const16, foo:card(4))
   }
 	otawa_sem = "SETI(D(0), S16(1));"
 	
-op mov_const64 (c:reg_e, const:const16)
-  syntax = format("mov %s,%s",c.syntax,const.syntax)
-  image = format("%s%s XXXX %8b",c.image,const.image,0xFB)
-  action = 	{
-  	sign_ext16to64(const, TMP_1);
-  	c = TMP_1;
-  }
+op mov_const64 (c:EXT_DATA_REG, const:const16) // MOV E[c], const16 (RLC)
+	syntax = format("mov %s,%s",c.syntax,const.syntax)
+	image = format("%s%s XXXX %8b",c.image,const.image,0xFB)
+	action = 	{
+		sign_ext16to64(const, TMP_1);
+		D[c.h] = TMP_1<63..32>;
+		D[c.l] = TMP_1<31..0>;
+	}
   
  
-op mov_reg64 (c:reg_e, b:reg_d)
+op mov_reg64 (c:EXT_DATA_REG, b:reg_d) // MOV E[c], D[b] (RR)
     syntax = format("mov %s,%s",c.syntax,b.syntax)
     image = format("%s %8b XX XX %s XXXX %8b",c.image,0x80,b.image,0x0B)
-    action = 	{
-    	sign_ext32to64(b, TMP_1);
-			c = TMP_1;
-		}
+	action = {
+		sign_ext32to64(b, TMP_1);
+	  	D[c.h] = TMP_1<63..32>;
+	  	D[c.l] = TMP_1<31..0>;
+	}
 		
-op mov_rr64 (c:reg_e,a:reg_d,b:reg_d)
+op mov_rr64 (c:EXT_DATA_REG,a:reg_d,b:reg_d) // MOV E[c], D[a], D[b] (RR)
 	syntax = format("mov %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX XX %s %s %8b", c.image, 0x81, b.image, a.image, 0x0B)
 	action = {
-		c = a :: b;
+		D[c.h] = a;
+		D[c.l] = b;
 	}
 
 op  mov_a (c:reg_a, b:reg_d, foo1:card(4), foo2:card(4))
@@ -4666,7 +4741,7 @@ op mulh_uu (c:reg_e,n:card(2),b:reg_d,a:reg_d)
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
-op mul_u (c:reg_e,b:reg_d,a:reg_d)
+op mul_u (c:EXT_DATA_REG,b:reg_d,a:reg_d)
    syntax = format("mul.u %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s000001101000%s%s01110011",c.image,b.image,a.image)
    action = 	{
@@ -4675,11 +4750,12 @@ op mul_u (c:reg_e,b:reg_d,a:reg_d)
 		stickyOverflow();
 		advancedOverflow64(result64);
 		stickyAdvancedOverflow();
-		c = result64<63..0>;
+		D[c.h] = result64<63..32>;
+		D[c.l] = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
-op mul_u_const9 (c:reg_e,const:card(9),a:reg_d)
+op mul_u_const9 (c:EXT_DATA_REG,const:card(9),a:reg_d)
    syntax = format("mul.u %s,%s,%d",c.syntax,a.syntax,const)
    image = format("%s0000010%9b%s01010011",c.image,const,a.image)
    action = 	{
@@ -4689,7 +4765,8 @@ op mul_u_const9 (c:reg_e,const:card(9),a:reg_d)
 		stickyOverflow();
 		advancedOverflow64(result64);
 		stickyAdvancedOverflow();
-		c = result64<63..0>;
+		D[c.h] = result64<63..32>;
+		D[c.l] = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0) * 2); SCRATCH(D(0) * 2 + 1);"
 
@@ -4697,10 +4774,10 @@ op mul_u_const9 (c:reg_e,const:card(9),a:reg_d)
 // ne instructions
 op ne = ne_reg|ne_const9|neza | ne_a
 
-op ne_a(c: reg_d, a: reg_d, b: reg_d, foo: card(4))
+op ne_a(c: reg_d, a: reg_a, b: reg_a, foo: card(4))
 	syntax	= format("ne.a %s, %s, %s", c.syntax, a.syntax, b.syntax)
 	image	= format("%s01000001%4b%s%s00000001", c.image, foo, b.image, a.image)
-	action	= { c = a != b; }
+	action	= { c = (a != b); }
 	otawa_sem = "SCRATCH(D(0));"
 
 op ne_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
@@ -4818,14 +4895,14 @@ op or_or_t(c:reg_d,a:reg_d,b:reg_d,pos1:pos,pos2:pos)
 
 op or_eq_const(c: reg_d, a: reg_d, const9: int(9))
 	syntax	= format("or.eq %s, %s, %d", c.syntax, a.syntax, const9)
-	image	= format("%s0100111%9b%s10001011", c.image, const9, a.image)
-	action	= { c<1..31> = c<0..30>; c<0..0> = c<0..0> | (a == const9); }
+	image	= format("%s %7b %9b %s %8b", c.image, 0x27, const9, a.image, 0x8B)
+	action	= { c<31..1> = c<31..1>; c<0..0> = c<0..0> | (a == const9); }
 	otawa_sem = "SCRATCH(D(0));"
 
 op or_eq_reg(c: reg_d, a: reg_d, b: reg_d, foo: card(4))
 	syntax	= format("or.eq %s, %s, %s", c.syntax, a.syntax, b.syntax)
-	image	= format("%s00100111%4b%s%s00001011", c.image, foo, b.image, a.image)
-	action	= { c<1..31> = c<0..30>; c<0..0> = c<0..0> | (a == b); }
+	image	= format("%s %8b %4b %s %s %8b", c.image, 0x27, foo, b.image, a.image, 0x0B)
+	action	= { c<31..1> = c<31..1>; c<0..0> = c<0..0> | (a == b); }
 	otawa_sem = "SCRATCH(D(0));"
 
 op or_reg(c:reg_d,a:reg_d,b:reg_d,foo:card(4))
@@ -5300,26 +5377,31 @@ op sh_ne_reg(c: reg_d, a: reg_d, b:reg_d)
 		endif;
 	}
 
-op sh_reg (c:reg_d, a:reg_d, b:reg_d, foo:card(4))
+op sh_reg (c:reg_d, a:reg_d, b:reg_d) // SH D[c], D[a], D[b] (RR)
    syntax = format("sh %s, %s, %s",c.syntax,a.syntax,b.syntax)
-   image = format("%s00000000%4b%s%s00001111",c.image,foo,b.image,a.image)
+   image = format("%4b %8b XXXX %4b %4b %8b",c.image, 0x00, b.image, a.image, 0x0F)
    action = {
-			if (b<5..0> >= 0) then 
-				c = a << b<5..0>;
+   			sign_ext6to32(b<5..0>, TMP_6_i32);
+			if (TMP_6_i32 >= 0) then 
+				c = a << TMP_6_i32;
 			else 
-				c = a >> (-b<5..0>);
+				TMP_6_i32 = 0 - TMP_6_i32;
+				c = a >> TMP_6_i32;
 			endif;
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
-op sh_const9 (c:reg_d, a:reg_d, const:const9)
+
+op sh_const9 (c:reg_d, a:reg_d, const:sign6) // SHD[c], D[a], const9 (RC)
    syntax = format("sh %s, %s, %s",c.syntax,a.syntax,const.syntax)
-   image = format("%s0000000%9b%s10001111",c.image,const.image,a.image)
+   image = format("%4b %7b XXX %6b %4b %8b",c.image,0x00, const.image,a.image, 0x8F)
    action = {
-			if (const<5..0> >= 0) then 
-				c = a << const<5..0>;
+   			sign_ext6to32(const, TMP_6_i32);
+			if (TMP_6_i32 > 0) then 
+				c = a << TMP_6_i32;
 			else 
-				c = a >> (-const<5..0>);
+				TMP_6_i32 = 0 - TMP_6_i32;
+				c = a >> TMP_6_i32;
 			endif;
 	 }
 	otawa_sem = "SCRATCH(D(0));"
@@ -5330,44 +5412,48 @@ op shas_const (c:reg_d,a:reg_d,const:const9)
 	syntax = format("shas %s, %s, %s",c.syntax, a.syntax, const.syntax)
 	image = format("%s %7b %s %s %8b", c.image, 0x02, const.image, a.image, 0x8F)
 	action = {
-		if (const<5..0> >= 0) then
-			result64 = a << const<5..0>;
+		sign_ext6to64(const, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		if ( TMP64_1s >= 0 ) then
+			result64s = TMP64_2s << TMP64_1s;
 		else
-			TMP_1 = 0 - const<5..0>;
-			if (a<31..31>) then
-				TMP_2 = (((1<<TMP_1)-1)<<(32-TMP_1));
+			TMP64_1s = 0 - TMP64_1s;
+			if (TMP64_2s<31..31>) then
+				TMP64_3s = (((1<<TMP64_1s)-1)<<(32-TMP64_1s));
 			else
-				TMP_2 = 0;
+				TMP64_3s = 0;
 			endif;
-			result64 = TMP_2 | (a >> TMP_1);
-		endif;
-		overflow(result64);
+			result64s = TMP64_3s | (TMP64_2s >> TMP64_1s);
+		endif;		
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		ssov(result64,32,c);
+		ssov(result64s,32,c);
 	}
 
 op shas_reg (c:reg_d,a:reg_d,b:reg_d)
 	syntax = format("shas %s, %s, %s",c.syntax, a.syntax, b.syntax)
 	image = format("%s %8b XX XX %s %s %8b", c.image, 0x02, b.image, a.image, 0x0F)
 	action = {
-		if (b<5..0> >= 0) then
-			result64 = a << b<5..0>;
+		sign_ext6to64(b, TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		if ( TMP64_1s >= 0 ) then
+			result64s = TMP64_2s << TMP64_1s;
 		else
-			TMP_1 = 0 - b<5..0>;
-			if (a<31..31>) then
-				TMP_2 = (((1<<TMP_1)-1)<<(32-TMP_1));
+			TMP64_1s = 0 - TMP64_1s;
+			if (TMP64_2s<31..31>) then
+				TMP64_3s = (((1<<TMP64_1s)-1)<<(32-TMP64_1s));
 			else
-				TMP_2 = 0;
+				TMP64_3s = 0;
 			endif;
-			result64 = TMP_2 | (a >> TMP_1);
-		endif;
-		overflow(result64);
+			result64s = TMP64_3s | (TMP64_2s >> TMP64_1s);
+		endif;		
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		ssov(result64,32,c);
+		ssov(result64s,32,c);
 	}
 	
 op sha_h_const(c:reg_d,a:reg_d,const:const9)
@@ -5416,12 +5502,14 @@ op sha_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
    syntax = format("sha %s, %s, %s",c.syntax,a.syntax,b.syntax)
    image = format("%s00000001%4b%s%s00001111",c.image,foo,b.image,a.image)
    action = 	{
-		if (coerce(int(32),b<5..0>) >= 0)
-		then
-			TMP_3 = 32-b<5..0>;
-			if ( b<5..0>) 
+   		sign_ext6to64(b,TMP64_1s); // b<5..0>
+   		sign_ext32to64(a,TMP64_2s);
+		if (TMP64_1s >= 0)						// if (const9[5:0] >= 0) then {
+		then									// carry_out = const9[5:0] ? (D[a][31:32 - const9[5:0]] != 0) : 0;
+			TMP64_3s = 32-TMP64_1s;
+			if (TMP64_1s) 						
 			then
-				if (a<31..TMP_3> != 0) then
+				if (a<31..TMP64_3s> != 0) then
 					CFLAG = 1;
 				else 
 					CFLAG = 0;
@@ -5429,67 +5517,72 @@ op sha_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
 			else
 				CFLAG = 0;
 			endif;
-			result64 = coerce(int(64),a)<<(b<5..0>);
+			result64s = TMP64_2s << TMP64_1s;	// result = D[a] << const9[5:0];			
 		else
-			TMP_1 = 0-b<5..0>;
-			if(a<31..31>)
+			TMP64_1s = 0 - TMP64_1s;			// shift_count = 0 - const9[5:0];			
+			if(a<31..31>)						// msk = D[a][31] ? (((1 << shift_count) - 1) << (32 - shift_count)) : 0;			
 			then
-				TMP_2 = (((1<<TMP_1)-1)<<(32-TMP_1));
+				TMP64_3s = (((1<<TMP64_1s)-1)<<(32-TMP64_1s)); 
 			else
-				TMP_2 = 0;
+				TMP64_3s = 0; // msk
 			endif;
-			result64 = (coerce(int(64),TMP_2) | (coerce(int(64),a)>>TMP_1));
-			if (a<(TMP_1-1)..0> != 0)
+			result64s = TMP64_3s | (TMP64_2s >> TMP64_1s);	// result = msk | (D[a] >> shift_count);			
+			if (a<(TMP64_1s-1)..0> != 0)					// carry_out = (D[a][shift_count - 1:0] != 0);			
 			then
 				CFLAG = 1;
 			else
 				CFLAG = 0;
 			endif;
 		endif;
-		overflow(result64);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
-op sha_const9 (c:reg_d,a:reg_d,const:const9)
-   syntax = format("sha %s, %s ,%s",c.syntax,a.syntax,const.syntax)
-   image = format("%s0000001%s%s10001111",c.image,const.image,a.image)
+op sha_const9 (c:reg_d,a:reg_d,const9:sign9)
+   syntax = format("sha %s, %s ,%s",c.syntax,a.syntax, const9.syntax)
+   image = format("%s %7b %s %s %8b",c.image, 0x1, const9.image, a.image, 0x8F)
    action = 	{
-		TMP_4 = coerce(int(32),const);
-		if (TMP_4 >= 0)
-		then
-			TMP_3 = 32-TMP_4<5..0>;
-			if ( (TMP_4<5..0>) && (a<31..TMP_3> != 0) )
+   		sign_ext6to64(const9,TMP64_1s); // b<5..0>
+   		sign_ext32to64(a,TMP64_2s);
+		if (TMP64_1s >= 0)						// if (const9[5:0] >= 0) then {
+		then									// carry_out = const9[5:0] ? (D[a][31:32 - const9[5:0]] != 0) : 0;
+			TMP64_3s = 32-TMP64_1s;
+			if (TMP64_1s) 						
 			then
-				CFLAG = 1;
+				if (a<31..TMP64_3s> != 0) then
+					CFLAG = 1;
+				else 
+					CFLAG = 0;
+				endif;
 			else
 				CFLAG = 0;
 			endif;
-			result64 = coerce(int(64),a)<<(TMP_4<5..0>);
+			result64s = TMP64_2s << TMP64_1s;	// result = D[a] << const9[5:0];			
 		else
-			TMP_1 = 0-TMP_4<5..0>;
-			if(a<31..31>)
+			TMP64_1s = 0 - TMP64_1s;			// shift_count = 0 - const9[5:0];			
+			if(a<31..31>)						// msk = D[a][31] ? (((1 << shift_count) - 1) << (32 - shift_count)) : 0;			
 			then
-				TMP_2 = (((1<<TMP_1)-1)<<(32-TMP_1));
+				TMP64_3s = (((1<<TMP64_1s)-1)<<(32-TMP64_1s)); 
 			else
-				TMP_2 = 0;
+				TMP64_3s = 0; // msk
 			endif;
-			result64 = (coerce(int(64),TMP_2) | (coerce(int(64),a)>>TMP_1));
-			if (a<(TMP_1-1)..0> != 0)
+			result64s = TMP64_3s | (TMP64_2s >> TMP64_1s);	// result = msk | (D[a] >> shift_count);			
+			if (a<(TMP64_1s-1)..0> != 0)					// carry_out = (D[a][shift_count - 1:0] != 0);			
 			then
 				CFLAG = 1;
 			else
 				CFLAG = 0;
 			endif;
 		endif;
-		overflow(result64);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -7277,7 +7370,7 @@ op msub_const (c:reg_d,d:reg_d,a:reg_d,const:const9)
 		stickyOverflow();
 		advancedOverflow(result64);
 		stickyAdvancedOverflow();
-		c = result64<0..31>;
+		c = result64<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -7364,13 +7457,14 @@ op rsubs(c:reg_d, a:reg_d, const:const9)
 	syntax = format("rsubs %s, %s, %s", c.syntax,a.syntax,const.syntax)
 	image = format("%s %7b %s %s %8b",c.image, 0x0A, const.image, a.image, 0x8B)
 	action = {
-		sign_ext9to32(const,TMP_1);
-		result64 = coerce(int(64),TMP_1)-coerce(int(64),a);
-		overflow(result64);
+		sign_ext9to64(const,TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		result64s = TMP64_1s-TMP64_2s;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		ssov(result64, 32, c);
+		ssov(result64s, 32, c);
 	}
 	
 op rsubs_u(c:reg_d, a:reg_d, const:const9)
@@ -7390,13 +7484,14 @@ op r_sub(c:reg_d, a:reg_d, const:const9)
    syntax = format("rsub %s, %s, %s",c.syntax,a.syntax,const.syntax)
    image = format("%s0001000%s%s10001011",c.image,const.image,a.image)
    action = 	{
-		sign_ext9to32(const,TMP_1);
-		result64 = coerce(int(64),TMP_1)-coerce(int(64),a);
-		overflow(result64);
+		sign_ext9to64(const,TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		result64s = TMP64_1s - TMP64_2s;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SETI(T1, S9(2)); SUB(D(0), T1, D(1));"
 
@@ -7404,12 +7499,14 @@ op sub_reg (c:reg_d, a:reg_d, b:reg_d, foo:card(4))
    syntax = format("sub %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s00001000%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		result64 = coerce(int(64),a)-coerce(int(64),b);
-		overflow(result64);
+   		sign_ext32to64(a, TMP64_1s);
+   		sign_ext32to64(b, TMP64_2s);
+		result64s = TMP64_1s-TMP64_2s;
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SUB(D(0), D(1), D(2));"
 
@@ -7479,13 +7576,17 @@ op subc (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
    syntax = format("subc %s, %s, %s",c.syntax,a.syntax,b.syntax)
    image = format("%s00001101%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		result64 = coerce(int(64),a)-coerce(int(64),b)+CFLAG-1;
-		carry(result64);
-		overflow(result64);
+   		TMP64_1s = CFLAG;
+		sign_ext32to64(a, TMP64_2s);
+		sign_ext32to64(b, TMP64_3s);	  
+		result64s = TMP64_2s - TMP64_3s + TMP64_1s - 1; 		
+		//carry(result64s);
+		carry2(a, ~b, CFLAG);
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
-		c = result64<31..0>;
+		c = result64s<31..0>;
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
@@ -7493,10 +7594,12 @@ op subs (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
    syntax = format("subs %s, %s, %s",c.syntax,a.syntax,b.syntax)
    image = format("%s00001010%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		result64 = coerce(int(64),a)-coerce(int(64),b);
-		overflow(result64);
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);	  
+		result64s = TMP64_1s - TMP64_2s; 	   
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
+		advancedOverflow(result64s);
 		stickyAdvancedOverflow();
 		ssov(result64,32, c);
 		}
@@ -7574,17 +7677,20 @@ op subshu (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
 op subx (c:reg_d, a:reg_d, b:reg_d, foo:card(4))
-   syntax = format("subx %s,%s,%s",c.syntax,a.syntax,b.syntax)
-   image = format("%s00001100%4b%s%s00001011",c.image,foo,b.image,a.image)
-   action = 	{
-		result64 = coerce(int(64),a)-coerce(int(64),b);
-		overflow(result64);
+	syntax = format("subx %s,%s,%s",c.syntax,a.syntax,b.syntax)
+	image = format("%s00001100%4b%s%s00001011",c.image,foo,b.image,a.image)
+	action = {
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);	  
+		result64s = TMP64_1s - TMP64_2s; 	 	
+		overflow(result64s);
 		stickyOverflow();
-		advancedOverflow(result64);
-		stickyAdvancedOverflow();
-		carry(result64);
-		c = result64<31..0>;
-		}
+		advancedOverflow(result64s);
+		stickyAdvancedOverflow();		
+		carry2(a,~b,1);		
+		c = result64s<31..0>;
+		
+	}
 	otawa_sem = "SCRATCH(PSW); SUB(D(0), D(1), D(2));"
 
 
@@ -7796,7 +7902,9 @@ op lt_reg (a:reg_d,b:reg_d,c:reg_d,foo:card(4))
    syntax = format("lt %s,%s,%s",c.syntax,a.syntax,b.syntax)
    image = format("%s00010010%4b%s%s00001011",c.image,foo,b.image,a.image)
    action = 	{
-		if (a < b)
+		sign_ext32to64(a, TMP64_1s);
+		sign_ext32to64(b, TMP64_2s);
+		if (TMP64_1s < TMP64_2s)
 		then
 			c = 1;
 		else
@@ -7807,10 +7915,11 @@ op lt_reg (a:reg_d,b:reg_d,c:reg_d,foo:card(4))
 
 op lt_const (c:reg_d,a:reg_d,const:const9)
    syntax = format("lt %s,%s,%s",c.syntax,a.syntax,const.syntax)
-   image = format("%s0010010%s%s10001011",c.image,const.image,a.image)
+   image = format("%s0010010%s%s %8b",c.image,const.image,a.image, 0x8B)
    action = 	{
-		sign_ext9to32(const,TMP_1);
-		if (a < TMP_1)
+		sign_ext9to64(const,TMP64_1s);
+		sign_ext32to64(a, TMP64_2s);
+		if (TMP64_2s < TMP64_1s)
 		then
 			c = 1;
 		else

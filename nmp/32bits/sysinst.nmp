@@ -64,6 +64,10 @@ op mfcr (c:reg_d,const16:card(16),foo:card(4))
 			case (0xFE2C) : c = ICR;
 			case (0xFE38) : c = FCX;
 			case (0xFE3C) : c = LCX;
+			
+			// othercase C does not change! .... need to fix
+			case (0xFE1C) : c = M[0xf881fe1c];
+			
 		};
 		if (const16 == 0xFE04)
 		then
@@ -73,7 +77,7 @@ op mfcr (c:reg_d,const16:card(16),foo:card(4))
 			AVFLAG = c<28..28>;
 			SAVFLAG = c<27..27>;
 		endif;
-		}
+		}		
 	otawa_sem = "SETI(T1, U16(1)); SETI(T2, 0xfe04); CMP(T2, T1, T2); IF(EQ, T2, 1); SET(D(0), PSW); SETI(T2, 0xfe08); CMP(T2, T1, T2); IF(EQ, T2, 2); SETI(T1, IADDR); SET(D(0), T1);"
 
 op debug (foo1:card(4),foo2:card(14))
@@ -370,7 +374,7 @@ op bisr(const : const9)
 	syntax = format("bisr %s", const.syntax)
 	image = format("XXXX %7b %s XXXX %8b",0x00,const.image, 0xAD)
 	action = {
-		if(FCX==0) then error("TRAP"); endif;
+		if(FCX==0) then error("TRAP bisr:FXX==0"); endif;
 		TMP_1 = FCX; //tmp_FCX
 		indice = FCXS :: 0b000000 :: FCXO :: 0b000000;
 		loadWord(TMP_2,indice); //new_fcx
@@ -397,15 +401,15 @@ op bisr(const : const9)
 		FCX<19..0> = TMP_2<19..0>;
 		IE = 1;
 		CCPN = const<7..0>;
-		if(TMP_1 == LCX) then error("TRAP"); endif;
+		if(TMP_1 == LCX) then error("TRAP bisr:FCX == LCX"); endif;
 	}
 	
 op rfe()
 	syntax = "rfe"
 	image = "XXXX 000111 XXXXXXXXXX XXXX 00001101"
 	action = {
-		if(PCXI<19..0> == 0) then error("TRAP"); endif;
-		if(UL == 0) then error("TRAP"); endif;
+		if(PCXI<19..0> == 0) then error("TRAP rfe:PCXI<19..0> == 0"); endif;
+		if(UL == 0) then error("TRAP rfe:UL == 0"); endif;
 		result_byte1 = 0;
 		if (CDC<6..6> == 0) then result_byte1<5..0> = CDC<5..0>;
 		else if (CDC<6..5> == 0b10) then result_byte1<4..0> = CDC<4..0>;
@@ -415,7 +419,7 @@ op rfe()
 		else if (CDC<6..1> == 0b111110) then result_byte1<0..0> = CDC<0..0>;
 		endif; endif; endif; endif; endif; endif;
 		if((result_byte1==0) || CDC==0b0000000) then tmp1=1; else tmp1=0; endif;
-		if(tmp1==0 && CDEFLAG ==1) then error("TRAP"); endif;
+		if(tmp1==0 && CDEFLAG ==1) then error("TRAP rfe:CDEFLAG==1"); endif;
 		NPC = A[11]<31..1> :: 0b0;
 		IE = PIE;
 		CCPN = PCPN;
@@ -445,7 +449,7 @@ op rfm()
 	syntax = "rfm"
 	image = "XXXX 000101 XXXXXXXXXX XXXX 00001101"
 	action = {
-		if(IO != 0x10) then error("TRAP"); endif;
+		if(IO != 0x10) then error("TRAP rfm:IO != 0x10"); endif;
 		if(DE==1) then 
 			NPC = A[11]<31..1> :: 0b0;
 			IE = PIE;
@@ -463,8 +467,8 @@ op rslcx()
 	syntax = "rslcx"
 	image = "XXXX 001001 XXXXXXXXXX XXXX 00001101"
 	action = {
-		if (PCXI<19..0>==0) then error("TRAP"); endif;
-		if (UL==1) then error("TRAP"); endif;
+		if (PCXI<19..0>==0) then error("TRAP rslcx:PCXI<19..0>==0"); endif;
+		if (UL==1) then error("TRAP rslcx:UL==1"); endif;
 		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
 		loadWord(TMP_1,indice);
 		loadWord(A[11],indice+4);
@@ -491,13 +495,13 @@ op trapsv()
 	syntax = "trapsv"
 	image = "XXXX 010101 XXXXXXXXXX XXXX 00001101"
 	action = {
-		if (SVFLAG==1) then error("TRAP"); endif;
+		if (SVFLAG==1) then error("TRAP trapsv"); endif;
 	}
 	
 op trapv()
 	syntax = "trapv"
 	image = "XXXX 010100 XXXXXXXXXX XXXX 00001101"
 	action = {
-		if(VFLAG == 1) then error("TRAP"); endif;
+		if(VFLAG == 1) then error("TRAP trapv"); endif;
 	}
 	
