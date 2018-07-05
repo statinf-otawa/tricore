@@ -4111,7 +4111,7 @@ op mov_reg (c:reg_d, b:reg_d)
 	}
 	otawa_sem = "SETI(D(0), D(1));"
 
-op mov_const32 (c:reg_d, const:const16, foo:card(4))
+op mov_const32 (c:reg_d, const:sign16, foo:card(4))
   syntax = format("mov %s,%s",c.syntax,const.syntax)
   image = format("%s%s%4b00111011",c.image,const.image,foo)
   action = 	{
@@ -4120,7 +4120,7 @@ op mov_const32 (c:reg_d, const:const16, foo:card(4))
   }
 	otawa_sem = "SETI(D(0), S16(1));"
 	
-op mov_const64 (c:EXT_DATA_REG, const:const16) // MOV E[c], const16 (RLC)
+op mov_const64 (c:EXT_DATA_REG, const:sign16) // MOV E[c], const16 (RLC)
 	syntax = format("mov %s,%s",c.syntax,const.syntax)
 	image = format("%s%s XXXX %8b",c.image,const.image,0xFB)
 	action = 	{
