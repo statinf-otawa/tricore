@@ -377,8 +377,10 @@ op sha_16(a:reg_d, const:sign4)
 			if ( (TMP_6_i32<4..0>) && (a<31..TMP_3> != 0) )			// carry_out = const4[0:3] ? (D[a][31:32 - const4[0:3]] != 0) : 0;
 			then
 				CFLAG = 1;
+				PSW_CFLAG = 1;
 			else
 				CFLAG = 0;
+				PSW_CFLAG = 0;
 			endif;
 			result64s = TMP64_2s << TMP64_1s;
 		else
@@ -393,8 +395,10 @@ op sha_16(a:reg_d, const:sign4)
 			if (a<(TMP_1-1)..0> != 0)
 			then
 				CFLAG = 1;
+				PSW_CFLAG = 1;
 			else
 				CFLAG = 0;
+				PSW_CFLAG = 0;
 			endif;
 		endif;
 		overflow(result64s);

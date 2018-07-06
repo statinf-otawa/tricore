@@ -2772,7 +2772,7 @@ op addc_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
 		}
 	otawa_sem = "SCRATCH(PSW); SCRATCH(D(0));"
 
-op addc_const9(c:reg_d,a:reg_d,const:const9)
+op addc_const9(c:reg_d,a:reg_d,const:sign9)
    syntax = format("addc %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format("%s0000101%s%s10001011",c.image,const.image,a.image)
    action = 	{
@@ -3754,7 +3754,7 @@ op eq_a(c: reg_d, a: reg_a, b: reg_a, foo: card(4))
 
 op eq_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
    syntax = format("eq %s,%s,%s",c.syntax,a.syntax,b.syntax)
-   image = format("%s00010000%4b%s%s00001011",c.image,foo,b.image,a.image)
+   image = format("%s00010000%4b%s%s00001011",c.image,foo,b.image,a.image) 
    action = 	{
 		if (a == b)
 		then
@@ -3765,7 +3765,7 @@ op eq_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
 	}
 	otawa_sem = "SCRATCH(D(0));"
 
-op eq_const9 (c:reg_d,a:reg_d,const:const9)
+op eq_const9 (c:reg_d,a:reg_d,const:const9) // 8B
    syntax = format("eq %s,%s,%s",c.syntax,a.syntax,const.syntax)
    image = format("%s0010000%s%s10001011",c.image,const.image,a.image)
    action = 	{
@@ -4188,8 +4188,8 @@ op movh_const16 (c:reg_d, const:card(16), foo:card(4))
 	otawa_sem = "SETI(T1, U16(1)); SETI(T2, 16); SHL(D(0), T1, T2);"
 
 op movh_a (c:reg_a, const:card(16))
-  syntax = format("movh.a %s,#%d",c.syntax,const)
-  image = format("%s%16bXXXX%8b",c.image,const,0x91)
+  syntax = format("movh.a %s,#%d", c.syntax, const)
+  image = format("%s %16b XXXX %8b",c.image, const, 0x91)
   action = 	{
 		c<31..16> = const<15..0>;
 		c<15..0> = 0;
@@ -5511,11 +5511,14 @@ op sha_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
 			then
 				if (a<31..TMP64_3s> != 0) then
 					CFLAG = 1;
+					PSW_CFLAG = 1;
 				else 
 					CFLAG = 0;
+					PSW_CFLAG = 0;
 				endif;
 			else
 				CFLAG = 0;
+				PSW_CFLAG = 0;
 			endif;
 			result64s = TMP64_2s << TMP64_1s;	// result = D[a] << const9[5:0];			
 		else
@@ -5530,8 +5533,10 @@ op sha_reg (c:reg_d,a:reg_d,b:reg_d,foo:card(4))
 			if (a<(TMP64_1s-1)..0> != 0)					// carry_out = (D[a][shift_count - 1:0] != 0);			
 			then
 				CFLAG = 1;
+				PSW_CFLAG = 1;
 			else
 				CFLAG = 0;
+				PSW_CFLAG = 0;
 			endif;
 		endif;
 		overflow(result64s);
@@ -5555,11 +5560,14 @@ op sha_const9 (c:reg_d,a:reg_d,const9:sign9)
 			then
 				if (a<31..TMP64_3s> != 0) then
 					CFLAG = 1;
+					PSW_CFLAG = 1;
 				else 
 					CFLAG = 0;
+					PSW_CFLAG = 0;
 				endif;
 			else
 				CFLAG = 0;
+				PSW_CFLAG = 0;
 			endif;
 			result64s = TMP64_2s << TMP64_1s;	// result = D[a] << const9[5:0];			
 		else
@@ -5574,8 +5582,10 @@ op sha_const9 (c:reg_d,a:reg_d,const9:sign9)
 			if (a<(TMP64_1s-1)..0> != 0)					// carry_out = (D[a][shift_count - 1:0] != 0);			
 			then
 				CFLAG = 1;
+				PSW_CFLAG = 1;
 			else
 				CFLAG = 0;
+				PSW_CFLAG = 0;
 			endif;
 		endif;
 		overflow(result64s);

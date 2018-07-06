@@ -24,6 +24,7 @@ op mtcr (a:reg_d,const:card(16),foo:card(4))
 			case (0xFE00) : PCXI = a;
 			case (0xFE04) : PSW = a;
 					CFLAG = a<31..31>;
+					PSW_CFLAG = a<31..31>;
 					VFLAG = a<30..30>;
 					SVFLAG = a<29..29>;
 					AVFLAG = a<28..28>;
@@ -72,6 +73,7 @@ op mfcr (c:reg_d,const16:card(16),foo:card(4))
 		if (const16 == 0xFE04)
 		then
 			CFLAG = c<31..31>;
+			PSW_CFLAG = c<31..31>;
 			VFLAG = c<30..30>;
 			SVFLAG = c<29..29>;
 			AVFLAG = c<28..28>;

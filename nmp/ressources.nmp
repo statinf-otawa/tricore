@@ -42,6 +42,7 @@ reg DBGSR[1,word] //initial = 0x00000000//debug status register
 reg SWEVT[1,word] //initial = 0x00000000//software debug event register
 reg DBGTCR[1,word] //debug trap control register
 reg DCX[1,word]	//debug context save area pointer
+reg PSW_CFLAG[1,word]
 
 var tmp1[1,bit]
 var tmp0[1,bit]
@@ -152,6 +153,7 @@ var TMP_AVFLAG[1, bit]
 ///////////////////////////////////////////
 // Program status word
 ///////////////////////////////////////////
+
 
 macro CFLAG = \
 	PSW<31..31>
@@ -388,7 +390,8 @@ macro ubyte0(v) = (coerce(card(8), (v)<7..0>))
 macro fabsdif(a, b) = if a > b then a - b else b - a endif
 
 macro carry(result) =\
-	CFLAG = result<32..32>;
+	CFLAG = result<32..32>;\
+	PSW_CFLAG = result<32..32>;
 
 macro carry2(a, b, c) =\
 	_TMP64_1 = a;\
@@ -397,7 +400,8 @@ macro carry2(a, b, c) =\
 	_TMP64_3 = 0;\
 	_TMP64_3<0..0> = c<0..0>;\
 	_TMP64_2 = _TMP64_1 + _TMP64_2 + _TMP64_3;\
-	CFLAG = _TMP64_2<32..32>;
+	CFLAG = _TMP64_2<32..32>;\
+	PSW_CFLAG = _TMP64_2<32..32>;
 
 // need 65bits to know!!
 macro overflow64(result) =\

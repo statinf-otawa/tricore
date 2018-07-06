@@ -1916,7 +1916,7 @@ op st_d_abs(a:EXT_DATA_REG, off1: card(4), off2: card(4), off3: card(6), off4: c
 		M[indice+7] = D[a.h]<31..24>;
 	}
 
-op st_d_bo10 (a:EXT_DATA_REG, b:reg_a, off1:card(4),off2:card(6),off:int(32))
+op st_d_bo10 (a:EXT_DATA_REG, b:reg_a, off1:card(4),off2:card(6),off:int(32)) // 0x25 ... 0x89
    predecode = {off<9..6>=off1<3..0>;
 		off<5..0>=off2<5..0>;
 		if (off<9..9>==1)then off<31..10>=0xffffff; endif;}
