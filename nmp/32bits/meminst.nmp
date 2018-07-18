@@ -1549,7 +1549,7 @@ op st_a = st_a_abs | st_a_bo10 | st_a_rev | st_a_circ | st_a_post | st_a_pre | s
 op st_a_bo10 (a:reg_a, b:reg_a, off1:card(4),off2:card(6),off:int(32))
    predecode = {off<6..9>=off1<0..3>;
 		off<0..5>=off2<0..5>;
-		if (off<9..9>==1)then off<16..31>=0xffffff; endif;}
+		if (off<9..9>==1)then off<10..31>=0xffffff; endif;}
    syntax = format("st.a [%s]%d, %s",b.syntax,off,a.syntax)
    image = format("%4b100110%6b%s%s10001001%0b",off1,off2,b.image,a.image,off)
    action = 	{ 
@@ -1567,7 +1567,7 @@ op st_a_abs (a:reg_a, off1:card(4),off2:card(4),off3:card(6),off4:card(4), off:i
 	     off<6..9>=off1<0..3>;
 	     off<10..13>=off2<0..3>;
 	     off<14..17>=off4<0..3>;
-	     //if (off<17..17>==1)then off<18..31>=0xffff; endif;
+	     //if (off<17..17>==1)then off<18..31>=0xffff; endif; -- zero extended
    }
    syntax = format("st.a %s, [%d]",a.syntax,off)
    image = format("%4b10%4b%6b%4b%s10100101%0b",off1,off2,off3,off4,a.image,off)
@@ -1662,7 +1662,7 @@ op st_a_pre (a:reg_a, b:reg_p, off1:card(4),off2:card(6),off:int(32))
 		}
 	otawa_sem = "INT10(T1, (2), (3)); ADD(T1, T1, A(1)); STOREW(A(0), T1); SET(A(1), T1);"
 
-op st_a_bol(off16 : card(16), off1:card(4),off2:card(6),off3:card(6),a:reg_a,b:reg_a,off:int(32))
+op st_a_bol(off16 : int(16), off1:card(4),off2:card(6),off3:card(6),a:reg_a,b:reg_a,off:int(32))
 	predecode = {
 		off16 = off2 :: off1 :: off3;
 		sign_ext16to32(off16, off);
