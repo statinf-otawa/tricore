@@ -62,12 +62,18 @@ op add16_1 (a:reg_d, b:reg_d)
 		}
 	otawa_sem = "SCRATCH(PSW); ADD(D(0), D(0), D(1));"
 
-op add16_2 (a:reg_d, const:sign4)
-	syntax = format("add %s,%s",a.syntax,const.syntax)
-	image = format("%s%s11000010",const.image,a.image)
+op add16_2 (a:reg_d, const1:card(4), const:int(32))
+	predecode = {
+		const<3..0>=const1<3..0>;
+		if (const1<3..3> == 1) then 
+			const<31..4>=0xFFFFFFF; 
+		endif;
+	}
+	syntax = format("add %s,%d",a.syntax,const)
+	image = format("%4b%s11000010%0b",const1.image,a.image, const)
 	action = 	{ 
 		sign_ext32to64(a, TMP64_1s);
-		sign_ext4to64(const, TMP64_2s);
+		sign_ext32to64(const, TMP64_2s);
 		result64s = TMP64_1s + TMP64_2s;
 		overflow(result64s);
 		stickyOverflow();
@@ -122,7 +128,7 @@ op add16_5 (a:reg_d,b:reg_d)
 		}
 	otawa_sem = "SCRATCH(PSW); ADD(D(0), D15, D(1));"
 
-op add16_6 (a:reg_d,const:const4)
+op add16_6 (a:reg_d,const:sign4) // ADD D[a], D[15], const4 (SRC)
 	syntax = format("add %s,d15,%s",a.syntax,const.syntax)
 	image = format("%s%s10010010",const.image,a.image)
 	action = 	{ 		
