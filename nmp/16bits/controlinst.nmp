@@ -2,53 +2,44 @@ op controlinst16 = call16|jumps16|ret_16|loop_16|fret16
 
 op jumps16 = j16|jeq16|jgez|jgtz|jlez|jne16|jltz|jz16|jnz_16|ji_16
 
-op call16(const:int(8))
-   syntax = format("call %08x", __IADDR+coerce(int(32),const)*2)
-   image = format("%8b01011100",const)
-   action = 	{ 
-	  	if (FCX == 0)
-		then
-			error("TRAP call16:FCX==0");//TRAP(FCU)
-		endif;
-		cdc_incr(TMP_1);
-		if (CDEFLAG && TMP_1)
-		then
-			error("TRAP call16:CDEFLAG==1");//TRAP(CDO)
-		endif;
+op call16(disp8: int(8))
+	disp = coerce(int(32), disp8) * 2
+	target = __IADDR + disp
+	syntax = format("call %l", target)
+	image = format("%8b01011100", disp8)
+	action = { 
+		if FCX == 0 then error("trap(FCU)"); endif;
+		if CDEFLAG then  cdc_incr(TMP_1); if TMP_1 then error("trap(CDO)"); endif; endif;
 		CDEFLAG = 1;
-		TMP_1 = PC+2;
-		TMP_2 = FCX;
-		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
-		loadWord(TMP_4,TMP_3);
-		storeWord(PCXI,TMP_3);
-		storeWord(PSW,TMP_3+4);
-		storeWord(A[10],TMP_3+8);
-		storeWord(A[11],TMP_3+12);
-		storeWord(D[8],TMP_3+16);
-		storeWord(D[9],TMP_3+20);
-		storeWord(D[10],TMP_3+24);
-		storeWord(D[11],TMP_3+28);
-		storeWord(A[12],TMP_3+32);
-		storeWord(A[13],TMP_3+36);
-		storeWord(A[14],TMP_3+40);
-		storeWord(A[15],TMP_3+44);
-		storeWord(D[12],TMP_3+48);
-		storeWord(D[13],TMP_3+52);
-		storeWord(D[14],TMP_3+56);
-		storeWord(D[15],TMP_3+60);
+		let ret_addr = PC + 2;
+		let tmp_FCX = FCX;
+		let EA = FCXS::0b000000::FCXO::0b000000;
+		let new_FCX = M[EA];
+		M[EA] = PCXI;
+		M[EA +  4] = PSW;
+		M[EA +  8] = A[10];
+		M[EA + 12] = A[11];
+		M[EA + 16] = D[8];
+		M[EA + 20] = D[9];
+		M[EA + 24] = D[10];
+		M[EA + 28] = D[11];
+		M[EA + 32] = A[12];
+		M[EA + 36] = A[13];
+		M[EA + 40] = A[14];
+		M[EA + 44] = A[15];
+		M[EA + 48] = D[12];
+		M[EA + 52] = D[13];
+		M[EA + 56] = D[14];
+		M[EA + 60] = D[15];
 		PCPN = CCPN;
 		PIE = IE;
 		UL = 1;
-		PCXI<0..19> = FCX<0..19>;
-		FCX<0..19> = TMP_4<0..19>;
-		NPC = PC + coerce(int(32),2*const);
-		A[11] = TMP_1;
-		if (TMP_2 == LCX)
-		then 
-			error("TRAP call16:LCX==FCX");//TRAP(FCD)
-		endif;
-   		}
-   		otawa_sem = "SAVE_CONTEXT; SETI(A11, IADDR + 2); SETI(T1, IADDR + 2 * S8(0)); BRANCH(T1);"
+		PCXI<19..0> = FCX<19..0>;
+		FCX<19..0> = new_FCX<19..0>;
+		NPC = PC + disp;
+		A[11] = ret_addr;
+		if tmp_FCX == LCX then  error("trap(FCD)"); endif;
+   	}
 
 op j16 (const:int(8))	
    syntax = format("j %08x", __IADDR+coerce(int(32),const)*2)

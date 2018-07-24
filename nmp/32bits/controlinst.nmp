@@ -35,160 +35,123 @@ op jl(disp: int(24), foo1: card(16), foo2: card(8))
  	otawa_sem	= "SETI(A11, IADDR + 4); SETI(T1, IADDR + 2 * ((S8(2) << 16) + U16(1))); BRANCH(T1);"
  
 
-op call(const:int(24), d1:card(16), d2:card(8))
-   predecode = {	
-	     const<16..23> = d2<0..7>;
-	     const<0..15> = d1<0..15>;
-   }
-   syntax = format("call %08x", __IADDR + coerce(int(32),const)*2)
-   image = format("%16b%8b01101101%0b",d1,d2,const)
-   action = 	{ 
-	  	if (FCX == 0)
-		then
-			error("TRAP call:FCU == 0");//TRAP(FCU)
-		endif;
-		cdc_incr(TMP_1);
-		if (CDEFLAG && TMP_1)
-		then
-			error("TRAP call:CDEFLAG==CDC");//TRAP(CDO)
-		endif;
+op call(d1:card(16), d2:card(8))
+	disp24 = d2 :: d1
+	disp = coerce(int(32), coerce(int(24), disp24)) * 2
+	target = __IADDR + disp
+	syntax = format("call %l", target)
+	image = format("%16b%8b01101101", d1, d2)
+	action = 	{ 
+		if FCX == 0 then error("trap(FCU)"); endif;
+		if CDEFLAG then  cdc_incr(TMP_1); if TMP_1 then error("trap(CDO)"); endif; endif;
 		CDEFLAG = 1;
-		TMP_1 = PC+4;
-		TMP_2 = FCX;
-		// TMP_3 = FCXS::0b000000::FCXO::0b000000;
-		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
-		loadWord(TMP_4,TMP_3);
-		storeWord(PCXI,TMP_3);
-		storeWord(PSW,TMP_3+4);
-		storeWord(A[10],TMP_3+8);
-		storeWord(A[11],TMP_3+12);
-		storeWord(D[8],TMP_3+16);
-		storeWord(D[9],TMP_3+20);
-		storeWord(D[10],TMP_3+24);
-		storeWord(D[11],TMP_3+28);
-		storeWord(A[12],TMP_3+32);
-		storeWord(A[13],TMP_3+36);
-		storeWord(A[14],TMP_3+40);
-		storeWord(A[15],TMP_3+44);
-		storeWord(D[12],TMP_3+48);
-		storeWord(D[13],TMP_3+52);
-		storeWord(D[14],TMP_3+56);
-		storeWord(D[15],TMP_3+60);
+		let ret_addr = PC+4;
+		let tmp_FCX = FCX;
+		let EA = FCXS::0b000000::FCXO::0b000000;
+		let new_FCX = M[EA];
+		M[EA] = PCXI;
+		M[EA +  4] = PSW;
+		M[EA +  8] = A[10];
+		M[EA + 12] = A[11];
+		M[EA + 16] = D[8];
+		M[EA + 20] = D[9];
+		M[EA + 24] = D[10];
+		M[EA + 28] = D[11];
+		M[EA + 32] = A[12];
+		M[EA + 36] = A[13];
+		M[EA + 40] = A[14];
+		M[EA + 44] = A[15];
+		M[EA + 48] = D[12];
+		M[EA + 52] = D[13];
+		M[EA + 56] = D[14];
+		M[EA + 60] = D[15];
 		PCPN = CCPN;
 		PIE = IE;
 		UL = 1;
-		PCXI<0..19> = FCX<0..19>;
-		FCX<0..19> = TMP_4<0..19>;
-		NPC = PC+coerce(int(32),2*const);
-		A[11] = TMP_1;
-		if (TMP_2 == LCX)
-		then 
-			error("TRAP call:FCX == LCX");//TRAP(FCD)
-		endif;
-   		}
-	otawa_sem	= "SAVE_CONTEXT; SETI(A11, IADDR + 4); SETI(T1, IADDR + 2 * ((S8(2) << 16) + U16(1))); BRANCH(T1); "
+		PCXI<19..0> = FCX<19..0>;
+		FCX<19..0> = new_FCX<19..0>;
+		NPC = PC + disp;
+		A[11] = ret_addr;
+		if tmp_FCX == LCX then  error("trap(FCD)"); endif;
+   	}
 		
 	
-op calla(const:int(24), d1:card(16), d2:card(8))
-   predecode = {
-	   	const<16..23> = d2<0..7>;
-	    const<0..15> = d1<0..15>;
-   }
-   syntax = format("calla %08x", const<23..20>::0b0000000::const<19..0>::0b0)
-   image = format("%16b%8b11101101%0b",d1,d2,const)
-   action = 	{ 
-	  	if (FCX == 0)
-		then
-			error("TRAP calla:FCX == 0");//TRAP(FCU)
-		endif;
-		cdc_incr(TMP_1);
-		if (CDEFLAG && TMP_1)
-		then
-			error("TRAP calla:CDEFG == CDC");//TRAP(CDO)
-		endif;
+op calla(d1:card(16), d2:card(8))
+	disp24 = d2 :: d1
+	target = disp24<23..30> :: 0b0000000 :: disp24<19..0> :: 0b0
+	syntax = format("calla %l", target)
+	image = format("%16b%8b11101101", d1, d2)
+	action = 	{ 
+		if FCX == 0 then error("trap(FCU)"); endif;
+		if CDEFLAG then  cdc_incr(TMP_1); if TMP_1 then error("trap(CDO)"); endif; endif;
 		CDEFLAG = 1;
-		TMP_1 = PC+4;
-		TMP_2 = FCX;
-		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
-		loadWord(TMP_4,TMP_3);
-		storeWord(PCXI,TMP_3);
-		storeWord(PSW,TMP_3+4);
-		storeWord(A[10],TMP_3+8);
-		storeWord(A[11],TMP_3+12);
-		storeWord(D[8],TMP_3+16);
-		storeWord(D[9],TMP_3+20);
-		storeWord(D[10],TMP_3+24);
-		storeWord(D[11],TMP_3+28);
-		storeWord(A[12],TMP_3+32);
-		storeWord(A[13],TMP_3+36);
-		storeWord(A[14],TMP_3+40);
-		storeWord(A[15],TMP_3+44);
-		storeWord(D[12],TMP_3+48);
-		storeWord(D[13],TMP_3+52);
-		storeWord(D[14],TMP_3+56);
-		storeWord(D[15],TMP_3+60);
+		let ret_addr = PC+4;
+		let tmp_FCX = FCX;
+		let EA = FCXS::0b000000::FCXO::0b000000;
+		let new_FCX = M[EA];
+		M[EA] = PCXI;
+		M[EA +  4] = PSW;
+		M[EA +  8] = A[10];
+		M[EA + 12] = A[11];
+		M[EA + 16] = D[8];
+		M[EA + 20] = D[9];
+		M[EA + 24] = D[10];
+		M[EA + 28] = D[11];
+		M[EA + 32] = A[12];
+		M[EA + 36] = A[13];
+		M[EA + 40] = A[14];
+		M[EA + 44] = A[15];
+		M[EA + 48] = D[12];
+		M[EA + 52] = D[13];
+		M[EA + 56] = D[14];
+		M[EA + 60] = D[15];
 		PCPN = CCPN;
 		PIE = IE;
 		UL = 1;
-		PCXI<0..19> = FCX<0..19>;
-		FCX<0..19> = TMP_4<0..19>;
-		NPC = const<23..20>::0b0000000::const<19..0>::0b0;
-		A[11] = TMP_1;
-		if (TMP_2 == LCX)
-		then 
-			error("TRAP calla:FCX == LCX");//TRAP(FCD)
-		endif;
-   		}
-	otawa_sem	= "SETI(A11, IADDR + 4); SETI(T1, (U8(2) << 24) + (U16(1) << 6)); SAVE_CONTEXT; BRANCH(T1); "
+		PCXI<19..0> = FCX<19..0>;
+		FCX<19..0> = new_FCX<19..0>;
+		NPC = target;
+		A[11] = ret_addr;
+		if tmp_FCX == LCX then  error("trap(FCD)"); endif;
+   	}
 
 
-op calli(a:reg_a, foo1:card(4), foo2:card(8))
+op calli(a: reg_a)
    syntax = format("calli %s", a.syntax)
-   image = format("%4b00000000%8b%s00101101",foo1,foo2,a.image)
-   action = 	{ 
-	  	if (FCX == 0)
-		then
-			error("TRAP calli:FCX == 0");//TRAP(FCU)
-		endif;
-		cdc_incr(TMP_1);
-		if (CDEFLAG && TMP_1)
-		then
-			error("TRAP calli:CDEFLAG && CDC");//TRAP(CDO)
-		endif;
+   image = format("XXXX 00000000 XX XX XXXX %s 00101101", a.image)
+   action = { 
+		if FCX == 0 then error("trap(FCU)"); endif;
+		if CDEFLAG then  cdc_incr(TMP_1); if TMP_1 then error("trap(CDO)"); endif; endif;
 		CDEFLAG = 1;
-		TMP_1 = PC+4;
-		TMP_2 = FCX;
-		TMP_3 = FCXS<0..3>::0b000000::FCXO<0..15>::0b000000;
-		loadWord(TMP_4,TMP_3);
-		storeWord(PCXI,TMP_3);
-		storeWord(PSW,TMP_3+4);
-		storeWord(A[10],TMP_3+8);
-		storeWord(A[11],TMP_3+12);
-		storeWord(D[8],TMP_3+16);
-		storeWord(D[9],TMP_3+20);
-		storeWord(D[10],TMP_3+24);
-		storeWord(D[11],TMP_3+28);
-		storeWord(A[12],TMP_3+32);
-		storeWord(A[13],TMP_3+36);
-		storeWord(A[14],TMP_3+40);
-		storeWord(A[15],TMP_3+44);
-		storeWord(D[12],TMP_3+48);
-		storeWord(D[13],TMP_3+52);
-		storeWord(D[14],TMP_3+56);
-		storeWord(D[15],TMP_3+60);
+		let ret_addr = PC+4;
+		let tmp_FCX = FCX;
+		let EA = FCXS::0b000000::FCXO::0b000000;
+		let new_FCX = M[EA];
+		M[EA] = PCXI;
+		M[EA +  4] = PSW;
+		M[EA +  8] = A[10];
+		M[EA + 12] = A[11];
+		M[EA + 16] = D[8];
+		M[EA + 20] = D[9];
+		M[EA + 24] = D[10];
+		M[EA + 28] = D[11];
+		M[EA + 32] = A[12];
+		M[EA + 36] = A[13];
+		M[EA + 40] = A[14];
+		M[EA + 44] = A[15];
+		M[EA + 48] = D[12];
+		M[EA + 52] = D[13];
+		M[EA + 56] = D[14];
+		M[EA + 60] = D[15];
 		PCPN = CCPN;
 		PIE = IE;
 		UL = 1;
-		PCXI<0..19> = FCX<0..19>;
-		FCX<0..19> = TMP_4<0..19>;
-		NPC = a<31..1>::0b0;
-		A[11] = TMP_1;
-		if (TMP_2 == LCX)
-		then 
-			error("TRAP calli:FCX == LCX");//TRAP(FCD)
-		endif;
-   		}
-	otawa_sem	= "SETI(A11, IADDR + 4); SETI(T2, 2); SHL(T1, A(0), T2); SAVE_CONTEXT; BRANCH(T1); "
+		PCXI<19..0> = FCX<19..0>;
+		FCX<19..0> = new_FCX<19..0>;
+		NPC = a<31..1> :: 0b0;
+		A[11] = ret_addr;
+		if tmp_FCX == LCX then  error("trap(FCD)"); endif;
+	}
 
 
 op j (const:int(24), d1:card(16), d2:card(8))
@@ -199,7 +162,7 @@ op j (const:int(24), d1:card(16), d2:card(8))
    syntax = format("j %08x", __IADDR+coerce(int(32),const)*2)
    image = format("%16b%8b00011101%0b",d1,d2,const)
    action = 	{ 
-		NPC = PC+coerce(int(32),const)*2;
+		PC = PC+coerce(int(32),const);
    	}
    	otawa_sem = "SETI(T1, IADDR + 2 * ((S8(2) << 16) + U16(1))); BRANCH(T1);"
 
@@ -530,47 +493,36 @@ op jz_t (disp:int(15),a:reg_d,n4:card(4),n1:card(1),n:card(5))
   	otawa_sem = "SCRATCH(T1); IF(NE, T1, 1); CONT; SETI(T1, IADDR + S15(1) * 2); BRANCH(T1);"
 
 
-op ret (foo1:card(4),foo2:card(14))
-   syntax = "ret"
-   image = format ("%4b000110%14b00001101",foo1,foo2)
-   action = 	{
-		cdc_decr(TMP_1);
-		if (CDEFLAG && TMP_1)
-		then
-			error("TRAP ret:CDEFLAG && CDC");//TRAP(CDU)
-		endif;
-		if(PCXI<0..19> == 0)
-		then
-			error("TRAP reg:PCXI<0..19> == 0");//TRAP(CSU)
-		endif;
-		if (UL == 0)
-		then
-			error("TRAP ret:UL == 0");//TRAP(CTYP)
-		endif;
-		NPC = A[11]<31..1>::0b0;
-		TMP_3 = PCXS<0..3>::0b000000::PCXO<0..15>::0b000000;
-		loadWord(TMP_1,TMP_3);
-		loadWord(TMP_2,TMP_3+4);
-		loadWord(A[10],TMP_3+8);
-		loadWord(A[11],TMP_3+12);
-		loadWord(D[8],TMP_3+16);
-		loadWord(D[9],TMP_3+20);
-		loadWord(D[10],TMP_3+24);
-		loadWord(D[11],TMP_3+28);
-		loadWord(A[12],TMP_3+32);
-		loadWord(A[13],TMP_3+36);
-		loadWord(A[14],TMP_3+40);
-		loadWord(A[15],TMP_3+44);
-		loadWord(D[12],TMP_3+48);
-		loadWord(D[13],TMP_3+52);
-		loadWord(D[14],TMP_3+56);
-		loadWord(D[15],TMP_3+60);
-		storeWord(FCX,TMP_3);
+op ret ()
+	syntax = "ret"
+	image = "XXXX 000110 XXXX XXXX XX XXXX 00001101"
+	action = {
+		if CDEFLAG then cdc_decr(TMP_1); if TMP_1 then error("trap(CDU)"); endif; endif;
+		if PCXI<19..0> == 0 then error("trap(CSU)"); endif;
+		if UL == 0 then error("trap(CTYPE)"); endif;
+		PC = A[11]<31..1> :: 0b0;
+		let EA = PCXI :: PCXS :: 0b000000 :: PCXO :: 0b000000;
+		let new_PCXI = M[EA + 0];
+		let new_PSW	 = M[EA + 4];
+		A[10] = M[EA +  8];
+		A[11] = M[EA + 12];
+		D[ 8] = M[EA + 16];
+		D[ 9] = M[EA + 20];
+		D[10] = M[EA + 24];
+		D[11] = M[EA + 28];
+		A[12] = M[EA + 32];
+		A[13] = M[EA + 36];
+		A[14] = M[EA + 40];
+		A[15] = M[EA + 44];
+		D[12] = M[EA + 48];
+		D[13] = M[EA + 52];
+		D[14] = M[EA + 56];
+		D[15] = M[EA + 60];
+		M[EA] = FCX;
 		FCX<0..19> = PCXI<0..19>;
-		PCXI = TMP_1;
-		PSW = TMP_2<31..26>::PSW<25..24>::TMP_2<23..7>::CDC<6..0>;
-   		}
-	otawa_sem	= "BRANCH(A11); LOAD_CONTEXT;"
+		PCXI = new_PCXI;
+		PSW = new_PSW<31..26> :: PSW<25..24> :: new_PSW<23..0>;
+	}
 
 
 op loop(b:reg_a, const:int(15), foo:card(4))
@@ -596,55 +548,48 @@ op loopu(const:int(15))
 		NPC = PC + TMP_1;
 	}
 
+op fcall(d1 : card(16), d2:card(8))
+	disp24 = coerce(int(24), d2 :: d1)
+	target = __IADDR + coerce(int(32), disp24) * 2
+	syntax = format("fcall %l", target)
+	image = format("%16b %8b 0110 0001", d1, d2)
+	action = {
+		let ret_addr = PC + 4;
+		let EA = A[10] - 4;
+		M[EA] = A[11];
+		PC  = target;
+		A[11] = ret_addr;
+		A[10] = EA;
+	}
 
-op fcall(d1 : card(16), d2:card(8), const:int(24))
-	predecode = {	
-	  const<16..23> = d2<0..7>;
-	  const<0..15> = d1<0..15>;
-   }
-   syntax = format("fcall %08x",__IADDR+coerce(int(32),const)*2)
-   image = format("%16b %8b 0110 0001 %0b", d1, d2, const)
-   action = {
-   	TMP_1 = PC+4;
-   	TMP_2 = A[10]-4;
-   	storeWord(A[11],TMP_2);
-   	NPC  = PC + coerce(int(32),2*const);
-   	A[11] = TMP_1;
-   	A[10] = TMP_2;
-   }
- 
+
    
-op fcalla(d1 : card(16), d2:card(8), const:int(24))
-	predecode = {	
-	  const<16..23> = d2<0..7>;
-	  const<0..15> = d1<0..15>;
-   }
-   syntax = format("fcalla %08x", const<23..20>::0b0000000::const<19..0>::0b0)
-   image = format("%16b %8b 1110 0001 %0b", d1, d2, const)
-   action = {
-   	TMP_1 = PC+4;
-   	TMP_2 = A[10]-4;
-   	storeWord(A[11],TMP_2);
-   	NPC<0..0>  = 0;
-   	NPC<20..1> = const<19..0>;
-   	NPC<27..21> = 0b0000000;
-   	NPC<31..28> = const<23..20>;
-   	A[11] = TMP_1;
-   	A[10] = TMP_2;
-   }
+op fcalla(d1: card(16), d2: card(8))
+	disp24 = d1::d2
+	target = disp24<23..20> :: 0b0000000 :: disp24<19..0> :: 0b0
+	syntax = format("fcalla %08x", target)
+	image = format("%16b %8b 1110 0001", d1, d2)
+	action = {
+		let ret_addr = PC + 4;
+		let EA = A[10] - 4;
+		M[EA] = A[11];
+		NPC = target;
+		A[11] = ret_addr;
+		A[10] = EA;
+	}
    
    
-op fcalli(a : reg_a)
+op fcalli(a: reg_a)
+	target = 0
 	syntax = format("fcalli %s", a.syntax)
 	image = format("XXXX %8b XX XX XXXX %s %8b", 0x01, a.image, 0x2D)
 	action = {
-		TMP_1 = PC+4;
-		TMP_2 = A[10]-4;
-		storeWord(A[11],TMP_2);
-		NPC<31..1> = a<31..1>;
-		NPC<0..0> = 0;
-		A[11] = TMP_1;
-   	A[10] = TMP_2;
+		let ret_addr = PC + 4;
+		let EA = A[10] - 4;
+		M[EA] = A[11];
+		NPC = a<31..1>::0b0;
+		A[11] = ret_addr;
+		A[10] = EA;
 	}
 	
 	
@@ -652,10 +597,9 @@ op fret()
 	syntax = "fret"
 	image = "XXXX 000011 XXXXXXXXXX XXXX 00001101"
 	action = {
-		NPC<31..1> = A[11]<31..1>;
-		NPC<0..0> = 0;
-		TMP_1 = A[10];
-		loadWord(A[11],TMP_1);
-		A[10] = A[10]+4;
+		NPC = A[11]<31..1>::0b0;
+		let EA = A[10];
+		A[11] = M[EA];
+		A[10] = A[10] + 4;
 	}
 	
