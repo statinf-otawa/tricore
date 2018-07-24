@@ -55,6 +55,7 @@ op bisr16(const:const8)
 		UL = 0;
 		PCXI<19..0> = FCX<19..0>;
 		FCX<19..0> = TMP_2<19..0>;
+		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		IE = 1;
 		CCPN = const<7..0>;
 		if(TMP_1 == LCX) then error("TRAP bisr16:CCPN==const<7..0>"); endif;
@@ -98,5 +99,6 @@ op rfe16()
 		loadWord(D[15],indice+60);
 		storeWord(FCX,indice);
 		FCX<19..0> = PCXI<19..0>;
+		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		PCXI = TMP_1;
 	}	

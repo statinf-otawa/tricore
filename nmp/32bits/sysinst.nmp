@@ -34,7 +34,7 @@ op mtcr (a:reg_d,const:card(16),foo:card(4))
 			case (0xFE18) : CPU_ID = a;
 			case (0xFE28) : ISP = a;
 			case (0xFE2C) : ICR = a;
-			case (0xFE38) : FCX = a;
+			case (0xFE38) : FCX = a; CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 			case (0xFE3C) : LCX = a;
 			};
 		endif;
@@ -401,6 +401,7 @@ op bisr(const : const9)
 		UL = 0;
 		PCXI<19..0> = FCX<19..0>;
 		FCX<19..0> = TMP_2<19..0>;
+		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		IE = 1;
 		CCPN = const<7..0>;
 		if(TMP_1 == LCX) then error("TRAP bisr:FCX == LCX"); endif;
@@ -444,6 +445,7 @@ op rfe()
 		loadWord(D[15],indice+60);
 		storeWord(FCX,indice);
 		FCX<19..0> = PCXI<19..0>;
+		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		PCXI = TMP_1;
 	}	
 	
@@ -490,6 +492,7 @@ op rslcx()
 		loadWord(D[7],indice+60);
 		storeWord(FCX,indice);
 		FCX<19..0> = PCXI<19..0>;
+		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		PCXI = TMP_1;
 	}
 	

@@ -43,6 +43,7 @@ reg SWEVT[1,word] //initial = 0x00000000//software debug event register
 reg DBGTCR[1,word] //debug trap control register
 reg DCX[1,word]	//debug context save area pointer
 reg PSW_CFLAG[1,word]
+reg CTX[1,word]
 
 var tmp1[1,bit]
 var tmp0[1,bit]
@@ -191,10 +192,10 @@ macro FX = PSW<26..26>
 ///////////////////////////////////////////
 
 macro FCXS = \
-	FCX<16..19>
+	FCX<19..16>
 
 macro FCXO = \
-	FCX<0..15>
+	FCX<15..0>
 
 
 ///////////////////////////////////////////
