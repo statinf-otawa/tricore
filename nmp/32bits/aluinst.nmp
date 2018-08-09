@@ -3843,13 +3843,13 @@ op eqanyh_const (c:reg_d,a:reg_d,const:const9)
 
 op extr = extr_pos|extr_u_reg|extr_u_width|extr_u_pos|extr_reg|extr_width
 
-op extr_reg (c:reg_d,a:reg_d,d:reg_e,foo:card(9))
+op extr_reg (c:reg_d,a:reg_d,d:EXT_DATA_REG,foo:card(9))
    syntax = format("extr %s,%s,%s",c.syntax,a.syntax,d.syntax)
    image = format("%s%s010%9b%s00010111",c.image,d.image,foo,a.image)
    action = 	{
-		TMP_1<4..0> = d<36..32>;
+		TMP_1<4..0> = D[d.h]<4..0>;
 		TMP_1<31..5> = 0x0000000;
-		TMP_2<4..0> = d<4..0>;
+		TMP_2<4..0> = D[d.l]<4..0>;
 		TMP_2<31..5> = 0x0000000;
 		TMP_3 = a>>TMP_2;
 		c = coerce(int(32),TMP_3<(TMP_1-1)..0>);
@@ -3887,13 +3887,13 @@ op extr_pos (c:reg_d,a:reg_d,pos:card(5),width:width5,foo:card(4))
 		}
 	otawa_sem = "SCRATCH(D(0));"
 
-op extr_u_reg (c:reg_d,a:reg_d,d:reg_e,foo:card(9))
+op extr_u_reg (c:reg_d,a:reg_d,d:EXT_DATA_REG,foo:card(9))
    syntax = format("extr.u %s,%s,%s",c.syntax,a.syntax,d.syntax)
    image = format("%s%s011%9b%s00010111",c.image,d.image,foo,a.image)
    action = 	{
-		TMP_1<4..0> = d<36..32>;
+		TMP_1<4..0> = D[d.h]<4..0>;
 		TMP_1<31..5> = 0x0000000;
-		TMP_2<4..0> = d<4..0>;
+		TMP_2<4..0> = D[d.l]<4..0>;
 		TMP_2<31..5> = 0x0000000;
 		TMP_3 = a>>TMP_2;
 		c = coerce(card(32),TMP_3<(TMP_1-1)..0>);
