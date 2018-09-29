@@ -317,7 +317,7 @@ op ji_16 (a:reg_a)
    	otawa_sem = "BRANCH(A(0));"
    	
 
-op jz_a_16 (b:reg_d, disp:card(4))
+op jz_a_16 (b:reg_a, disp:card(4))
    syntax = format ("jz.a %s, %08x", b.syntax, __IADDR+coerce(card(32),disp)*2)
    image = format("%s%4b10111100",b.image,disp)
    action = 	{

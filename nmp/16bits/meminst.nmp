@@ -63,7 +63,7 @@ op ld_w_16_1 (const:const8)
 	otawa_sem = "SETI(T1, 4 * U8(0)); ADD(T1, T1, A10); LOADW(D15, T1);"
 
 op ld_w_16_2 (c:reg_d, b:reg_a)
-   syntax = format("ld.w %s,[%s]",b.syntax,c.syntax)
+   syntax = format("ld.w %s,[%s]",c.syntax,b.syntax)
    image = format("%s%s01010100",b.image,c.image)
    action = 	{
 		indice = b;
@@ -87,9 +87,12 @@ op ld_w_16_3 (c:reg_d, b:reg_a)
 		}
 	otawa_sem = "LOADW(D(0), A(1)); SETI(T1, 4); ADD(A(1), A(1), T1);"
 
-op ld_w_16_4 (c:reg_d, off4:card(4))
-   syntax = format("ld.w %s,[a15]%d",c.syntax,off4)
-   image = format("%4b%s01001000",off4,c.image)
+op ld_w_16_4 (c:reg_d, off4:card(4), off:card(4))
+	predecode = {
+		off = off4 * 4;
+ 	}
+   syntax = format("ld.w %s,[a15]%d",c.syntax,off)
+   image = format("%4b%s01001000%0b",off4,c.image, off)
    action = 	{
 		TMP_1 = off4;
 		TMP_1 = TMP_1*4;
@@ -203,10 +206,13 @@ op st_w_16_3 (a:reg_d, b:reg_a)
 	otawa_sem = "STOREW(D(0), A(1)); SETI(T1, 4); ADD(A(1), A(1), T1);"
 	
 
-op st_w_16_4 (a:reg_d, off4:card(4))
-   syntax = format("st.w %s,[a15],%d",a.syntax,off4)
-   image = format("%4b%s01101000",off4,a.image)
-   action = 	{
+op st_w_16_4 (a:reg_d, off4:card(4), off:card(4))
+	predecode = {
+		off = off4 * 4;
+	}
+	syntax = format("st.w %s,[a15],%d",a.syntax,off)
+	image = format("%4b%s01101000%0b",off4,a.image, off)
+	action = 	{
 		TMP_1 = off4;
 		TMP_1 = TMP_1*4;
 		indice = A[15]+TMP_1;
