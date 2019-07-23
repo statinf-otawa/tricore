@@ -79,7 +79,7 @@ op call(d1:card(16), d2:card(8))
 	
 op calla(d1:card(16), d2:card(8))
 	disp24 = d2 :: d1
-	target = disp24<23..30> :: 0b0000000 :: disp24<19..0> :: 0b0
+	target = disp24<23..20> :: 0b0000000 :: disp24<19..0> :: 0b0
 	syntax = format("calla %l", target)
 	image = format("%16b%8b11101101", d1, d2)
 	action = 	{ 
