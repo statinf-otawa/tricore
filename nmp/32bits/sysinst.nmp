@@ -14,10 +14,10 @@ op untie()
 	action = { }
 
 
-op mtcr (a:reg_d,const:card(16),foo:card(4))
-   syntax = format("mtcr %d,%s",const,a.syntax)
-   image = format("%4b%16b%s11001101",foo,const,a.image)
-   action = 	{
+op mtcr (a:reg_d, const:card(16), foo:card(4))
+	syntax = format("mtcr 0x%x, %s", const, a.syntax)
+	image = format("%4b%16b%s11001101", foo, const, a.image)
+	action = {
 		if (IO == 0b01) // IO is PSW<10..11>, hence the bit order should be 01
 		then
 			switch (const) {
@@ -41,20 +41,20 @@ op mtcr (a:reg_d,const:card(16),foo:card(4))
 		}
 	otawa_sem = "SETI(T1, U16(1)); SETI(T2, 0xfe04); CMP(T2, T1, T2); IF(EQ, T2, 1); SCRATCH(PSW); SETI(T2, 0xfe08); CMP(T2, T1, T2); IF(EQ, T2, 1); BRANCH(D(0));"
 
-op dsync (foo1:card(4),foo2:card(14))
-   syntax = "dsync"
-   image = format("%4b010010%14b00001101",foo1,foo2)
-   action = { }
+op dsync (foo1:card(4), foo2:card(14))
+	syntax = "dsync"
+	image = format("%4b010010%14b00001101", foo1, foo2)
+	action = { }
 
-op isync (foo1:card(4),foo2:card(14))
-   syntax = "isync"
-   image = format ("%4b010011%14b00001101",foo1,foo2)
-   action = { }
+op isync (foo1:card(4), foo2:card(14))
+	syntax = "isync"
+	image = format ("%4b010011%14b00001101", foo1, foo2)
+	action = { }
 
-op mfcr (c:reg_d,const16:card(16),foo:card(4))
-   syntax = format("mfcr %s,%d",c.syntax,const16)
-   image = format("%s%16b%4b01001101",c.image,const16,foo)
-   action = 	{
+op mfcr (c:reg_d, const16:card(16), foo:card(4))
+	syntax = format("mfcr %s, 0x%x", c.syntax, const16)
+	image = format("%s%16b%4b01001101", c.image, const16, foo)
+	action = {
 		switch (const16) {
 			case (0xFE00) : c = PCXI;
 			case (0xFE04) : c = PSW;
@@ -82,10 +82,10 @@ op mfcr (c:reg_d,const16:card(16),foo:card(4))
 		}		
 	otawa_sem = "SETI(T1, U16(1)); SETI(T2, 0xfe04); CMP(T2, T1, T2); IF(EQ, T2, 1); SET(D(0), PSW); SETI(T2, 0xfe08); CMP(T2, T1, T2); IF(EQ, T2, 2); SETI(T1, IADDR); SET(D(0), T1);"
 
-op debug (foo1:card(4),foo2:card(14))
+op debug (foo1:card(4), foo2:card(14))
   syntax = "debug"
-  image = format("%4b000100%14b00001101",foo1,foo2)
-  action = 	{
+  image = format("%4b000100%14b00001101", foo1, foo2)
+  action = {
 		if (DE)
 		then
 			switch(EVTA) {
@@ -101,16 +101,16 @@ op debug (foo1:card(4),foo2:card(14))
 		endif;
 		}
 
-op disable (foo1:card(4),foo2:card(14))
-   syntax = "disable"
-   image = format("%4b001101%14b00001101",foo1,foo2)
-   action =	{
+op disable (foo1:card(4), foo2:card(14))
+	syntax = "disable"
+	image = format("%4b001101%14b00001101", foo1, foo2)
+	action =	{
 		IE = 0;
 		}
 		
 op disable2(a:reg_d)
 	syntax = format("disable %s", a.syntax)
-	image = format("XXXX %6b XXXXXXXXXX %s %8b",0x0F, a.image, 0x0D)
+	image = format("XXXX %6b XXXXXXXXXX %s %8b", 0x0F, a.image, 0x0D)
 	action = {
 		a<31..1> = 0;
 		a<0..0> = IE;
@@ -124,28 +124,28 @@ op restore(a :reg_d)
 		IE = a<0..0>;
 	}
 
-op enable (foo1:card(4),foo2:card(14))
-   syntax = "enable"
-   image = format("%4b001100%14b00001101",foo1,foo2)
-   action =	{
+op enable (foo1:card(4), foo2:card(14))
+	syntax = "enable"
+	image = format("%4b001100%14b00001101", foo1, foo2)
+	action =	{
 		IE = 1;
 		}
 
 op nop32 ()
-   syntax = "nop"
-   image = "XXXX 000000 XXXXXXXXXXXXXX 00001101"
-   action = 	{
+	syntax = "nop"
+	image = "XXXX 000000 XXXXXXXXXXXXXX 00001101"
+	action = {
 		}
 
-op syscall(const:card(32),foo1:card(4),foo2:card(4),cons:card(9))
-   predecode = 	{
+op syscall(const:card(32), foo1:card(4), foo2:card(4), cons:card(9))
+	predecode = {
 		const = 0;
 		const<0..8> = cons<0..8>;
 		}
-   syntax = format("syscall %d",const)
-   image = format("%4b0000100%9b%4b10101101%0b",foo1,cons,foo2,const)
-   action = 	{
-		//TRAP(SYS,const9<0..7>)
+	syntax = format("syscall %d", const)
+	image = format("%4b0000100%9b%4b10101101%0b", foo1, cons, foo2, const)
+	action = {
+		//TRAP(SYS, const9<0..7>)
 		}
 		
 op stcx = stlcx_abs | stlcx_ind |stucx_abs|stucx_ind
@@ -154,29 +154,29 @@ op stlcx_abs(off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_
 	predecode = {
 		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
 	}
-	syntax = format("stlcx %d",off18)
-	image = format("%4b 00 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	syntax = format("stlcx %d", off18)
+	image = format("%4b 00 %4b %6b %4b XXXX 00010101 %0b", off4_1, off4_2, off6, off4_3, off18)
 	action = {
 		TMP_1 = off18<17..14> :: 00000000000000 :: off18<13..0>;
-		storeWord(PCXI,TMP_1);
-		storeWord(A[11],TMP_1+4);
-		storeWord(A[2],TMP_1+8);
-		storeWord(A[3],TMP_1+12);
-		storeWord(D[0],TMP_1+16);
-		storeWord(D[1],TMP_1+20);
-		storeWord(D[2],TMP_1+24);
-		storeWord(D[3],TMP_1+28);
-		storeWord(A[4],TMP_1+32);
-		storeWord(A[5],TMP_1+36);
-		storeWord(A[6],TMP_1+40);
-		storeWord(A[7],TMP_1+44);
-		storeWord(D[4],TMP_1+48);
-		storeWord(D[5],TMP_1+52);
-		storeWord(D[6],TMP_1+56);
-		storeWord(D[7],TMP_1+60);
+		storeWord(PCXI, TMP_1);
+		storeWord(A[11], TMP_1+4);
+		storeWord(A[2], TMP_1+8);
+		storeWord(A[3], TMP_1+12);
+		storeWord(D[0], TMP_1+16);
+		storeWord(D[1], TMP_1+20);
+		storeWord(D[2], TMP_1+24);
+		storeWord(D[3], TMP_1+28);
+		storeWord(A[4], TMP_1+32);
+		storeWord(A[5], TMP_1+36);
+		storeWord(A[6], TMP_1+40);
+		storeWord(A[7], TMP_1+44);
+		storeWord(D[4], TMP_1+48);
+		storeWord(D[5], TMP_1+52);
+		storeWord(D[6], TMP_1+56);
+		storeWord(D[7], TMP_1+60);
 	}
 	
-op stlcx_ind(b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+op stlcx_ind(b:reg_a, off10:card(10), off6:card(6), off4:card(4))
 	predecode = {
 		off10 = off4 :: off6;
 	}
@@ -185,51 +185,51 @@ op stlcx_ind(b:reg_a,off10:card(10),off6:card(6),off4:card(4))
 	action = {
 		sign_ext10to32(off10, TMP_2);
 		TMP_1 = b + TMP_2;
-		storeWord(PCXI,TMP_1);
-		storeWord(A[11],TMP_1+4);
-		storeWord(A[2],TMP_1+8);
-		storeWord(A[3],TMP_1+12);
-		storeWord(D[0],TMP_1+16);
-		storeWord(D[1],TMP_1+20);
-		storeWord(D[2],TMP_1+24);
-		storeWord(D[3],TMP_1+28);
-		storeWord(A[4],TMP_1+32);
-		storeWord(A[5],TMP_1+36);
-		storeWord(A[6],TMP_1+40);
-		storeWord(A[7],TMP_1+44);
-		storeWord(D[4],TMP_1+48);
-		storeWord(D[5],TMP_1+52);
-		storeWord(D[6],TMP_1+56);
-		storeWord(D[7],TMP_1+60);
+		storeWord(PCXI, TMP_1);
+		storeWord(A[11], TMP_1+4);
+		storeWord(A[2], TMP_1+8);
+		storeWord(A[3], TMP_1+12);
+		storeWord(D[0], TMP_1+16);
+		storeWord(D[1], TMP_1+20);
+		storeWord(D[2], TMP_1+24);
+		storeWord(D[3], TMP_1+28);
+		storeWord(A[4], TMP_1+32);
+		storeWord(A[5], TMP_1+36);
+		storeWord(A[6], TMP_1+40);
+		storeWord(A[7], TMP_1+44);
+		storeWord(D[4], TMP_1+48);
+		storeWord(D[5], TMP_1+52);
+		storeWord(D[6], TMP_1+56);
+		storeWord(D[7], TMP_1+60);
 	}
 	
 op stucx_abs(off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_3:card(4))
 	predecode = {
 		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
 	}
-	syntax = format("stucx %d",off18)
-	image = format("%4b 01 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	syntax = format("stucx %d", off18)
+	image = format("%4b 01 %4b %6b %4b XXXX 00010101 %0b", off4_1, off4_2, off6, off4_3, off18)
 	action = {
 		TMP_1 = off18<17..14> :: 00000000000000 :: off18<13..0>;
-		storeWord(PCXI,TMP_1);
-		storeWord(PSW,TMP_1+4);
-		storeWord(A[10],TMP_1+8);
-		storeWord(A[11],TMP_1+12);
-		storeWord(D[8],TMP_1+16);
-		storeWord(D[9],TMP_1+20);
-		storeWord(D[10],TMP_1+24);
-		storeWord(D[11],TMP_1+28);
-		storeWord(A[12],TMP_1+32);
-		storeWord(A[13],TMP_1+36);
-		storeWord(A[14],TMP_1+40);
-		storeWord(A[15],TMP_1+44);
-		storeWord(D[12],TMP_1+48);
-		storeWord(D[13],TMP_1+52);
-		storeWord(D[14],TMP_1+56);
-		storeWord(D[15],TMP_1+60);
+		storeWord(PCXI, TMP_1);
+		storeWord(PSW, TMP_1+4);
+		storeWord(A[10], TMP_1+8);
+		storeWord(A[11], TMP_1+12);
+		storeWord(D[8], TMP_1+16);
+		storeWord(D[9], TMP_1+20);
+		storeWord(D[10], TMP_1+24);
+		storeWord(D[11], TMP_1+28);
+		storeWord(A[12], TMP_1+32);
+		storeWord(A[13], TMP_1+36);
+		storeWord(A[14], TMP_1+40);
+		storeWord(A[15], TMP_1+44);
+		storeWord(D[12], TMP_1+48);
+		storeWord(D[13], TMP_1+52);
+		storeWord(D[14], TMP_1+56);
+		storeWord(D[15], TMP_1+60);
 	}
 	
-op stucx_ind(b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+op stucx_ind(b:reg_a, off10:card(10), off6:card(6), off4:card(4))
 	predecode = {
 		off10 = off4 :: off6;
 	}
@@ -238,22 +238,22 @@ op stucx_ind(b:reg_a,off10:card(10),off6:card(6),off4:card(4))
 	action = {
 		sign_ext10to32(off10, TMP_2);
 		TMP_1 = b + TMP_2;
-		storeWord(PCXI,TMP_1);
-		storeWord(PSW,TMP_1+4);
-		storeWord(A[10],TMP_1+8);
-		storeWord(A[11],TMP_1+12);
-		storeWord(D[8],TMP_1+16);
-		storeWord(D[9],TMP_1+20);
-		storeWord(D[10],TMP_1+24);
-		storeWord(D[11],TMP_1+28);
-		storeWord(A[12],TMP_1+32);
-		storeWord(A[13],TMP_1+36);
-		storeWord(A[14],TMP_1+40);
-		storeWord(A[15],TMP_1+44);
-		storeWord(D[12],TMP_1+48);
-		storeWord(D[13],TMP_1+52);
-		storeWord(D[14],TMP_1+56);
-		storeWord(D[15],TMP_1+60);
+		storeWord(PCXI, TMP_1);
+		storeWord(PSW, TMP_1+4);
+		storeWord(A[10], TMP_1+8);
+		storeWord(A[11], TMP_1+12);
+		storeWord(D[8], TMP_1+16);
+		storeWord(D[9], TMP_1+20);
+		storeWord(D[10], TMP_1+24);
+		storeWord(D[11], TMP_1+28);
+		storeWord(A[12], TMP_1+32);
+		storeWord(A[13], TMP_1+36);
+		storeWord(A[14], TMP_1+40);
+		storeWord(A[15], TMP_1+44);
+		storeWord(D[12], TMP_1+48);
+		storeWord(D[13], TMP_1+52);
+		storeWord(D[14], TMP_1+56);
+		storeWord(D[15], TMP_1+60);
 	}
 	
 
@@ -274,128 +274,128 @@ op ldlcx_abs (off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4
 	predecode = {
 		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
 	}
-	syntax = format("ldlcx %d",off18)
-	image = format("%4b 10 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	syntax = format("ldlcx %d", off18)
+	image = format("%4b 10 %4b %6b %4b XXXX 00010101 %0b", off4_1, off4_2, off6, off4_3, off18)
 	action = {
 		TMP_1 = off18<17..14> :: 0b00000000000000 :: off18<13..0>;
-		//loadWord(PCXI,TMP_1);
-		//loadWord(A[11],TMP_1+4);
-		loadWord(A[2],TMP_1+8);
-		loadWord(A[3],TMP_1+12);
-		loadWord(D[0],TMP_1+16);
-		loadWord(D[1],TMP_1+20);
-		loadWord(D[2],TMP_1+24);
-		loadWord(D[3],TMP_1+28);
-		loadWord(A[4],TMP_1+32);
-		loadWord(A[5],TMP_1+36);
-		loadWord(A[6],TMP_1+40);
-		loadWord(A[7],TMP_1+44);
-		loadWord(D[4],TMP_1+48);
-		loadWord(D[5],TMP_1+52);
-		loadWord(D[6],TMP_1+56);
-		loadWord(D[7],TMP_1+60);
+		//loadWord(PCXI, TMP_1);
+		//loadWord(A[11], TMP_1+4);
+		loadWord(A[2], TMP_1+8);
+		loadWord(A[3], TMP_1+12);
+		loadWord(D[0], TMP_1+16);
+		loadWord(D[1], TMP_1+20);
+		loadWord(D[2], TMP_1+24);
+		loadWord(D[3], TMP_1+28);
+		loadWord(A[4], TMP_1+32);
+		loadWord(A[5], TMP_1+36);
+		loadWord(A[6], TMP_1+40);
+		loadWord(A[7], TMP_1+44);
+		loadWord(D[4], TMP_1+48);
+		loadWord(D[5], TMP_1+52);
+		loadWord(D[6], TMP_1+56);
+		loadWord(D[7], TMP_1+60);
 	}
 	
-op ldlcx_ind (b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+op ldlcx_ind (b:reg_a, off10:card(10), off6:card(6), off4:card(4))
 	predecode = {
 		off10 = off4 :: off6;
 	}
-	syntax = format("ldlcx [%s]%d",b.syntax,off10)
-	image = format("%4b 100100 %6b %s XXXX 01001001 %0b",off4,off6,b.image,off10)
+	syntax = format("ldlcx [%s]%d", b.syntax, off10)
+	image = format("%4b 100100 %6b %s XXXX 01001001 %0b", off4, off6, b.image, off10)
 	action = {
 		sign_ext10to32(off10, TMP_2);
 		TMP_1 = b+TMP_2;
-		//loadWord(PCXI,TMP_1);
-		//loadWord(A[11],TMP_1+4);
-		loadWord(A[2],TMP_1+8);
-		loadWord(A[3],TMP_1+12);
-		loadWord(D[0],TMP_1+16);
-		loadWord(D[1],TMP_1+20);
-		loadWord(D[2],TMP_1+24);
-		loadWord(D[3],TMP_1+28);
-		loadWord(A[4],TMP_1+32);
-		loadWord(A[5],TMP_1+36);
-		loadWord(A[6],TMP_1+40);
-		loadWord(A[7],TMP_1+44);
-		loadWord(D[4],TMP_1+48);
-		loadWord(D[5],TMP_1+52);
-		loadWord(D[6],TMP_1+56);
-		loadWord(D[7],TMP_1+60);
+		//loadWord(PCXI, TMP_1);
+		//loadWord(A[11], TMP_1+4);
+		loadWord(A[2], TMP_1+8);
+		loadWord(A[3], TMP_1+12);
+		loadWord(D[0], TMP_1+16);
+		loadWord(D[1], TMP_1+20);
+		loadWord(D[2], TMP_1+24);
+		loadWord(D[3], TMP_1+28);
+		loadWord(A[4], TMP_1+32);
+		loadWord(A[5], TMP_1+36);
+		loadWord(A[6], TMP_1+40);
+		loadWord(A[7], TMP_1+44);
+		loadWord(D[4], TMP_1+48);
+		loadWord(D[5], TMP_1+52);
+		loadWord(D[6], TMP_1+56);
+		loadWord(D[7], TMP_1+60);
 	}
 	
 op lducx_abs (off18:card(18), off4_1:card(4), off4_2:card(4), off6:card(6), off4_3:card(4))
 	predecode = {
 		off18 = off4_3 :: off4_2 :: off4_1 :: off6;
 	}
-	syntax = format("lducx %d",off18)
-	image = format("%4b 11 %4b %6b %4b XXXX 00010101 %0b",off4_1,off4_2,off6,off4_3,off18)
+	syntax = format("lducx %d", off18)
+	image = format("%4b 11 %4b %6b %4b XXXX 00010101 %0b", off4_1, off4_2, off6, off4_3, off18)
 	action = {
 		TMP_1 = off18<17..14> :: 0b00000000000000 :: off18<13..0>;
-		loadWord(A[10],TMP_1+8);
-		loadWord(A[11],TMP_1+12);
-		loadWord(D[8],TMP_1+16);
-		loadWord(D[9],TMP_1+20);
-		loadWord(D[10],TMP_1+24);
-		loadWord(D[11],TMP_1+28);
-		loadWord(A[12],TMP_1+32);
-		loadWord(A[13],TMP_1+36);
-		loadWord(A[14],TMP_1+40);
-		loadWord(A[15],TMP_1+44);
-		loadWord(D[12],TMP_1+48);
-		loadWord(D[13],TMP_1+52);
-		loadWord(D[14],TMP_1+56);
-		loadWord(D[15],TMP_1+60);
+		loadWord(A[10], TMP_1+8);
+		loadWord(A[11], TMP_1+12);
+		loadWord(D[8], TMP_1+16);
+		loadWord(D[9], TMP_1+20);
+		loadWord(D[10], TMP_1+24);
+		loadWord(D[11], TMP_1+28);
+		loadWord(A[12], TMP_1+32);
+		loadWord(A[13], TMP_1+36);
+		loadWord(A[14], TMP_1+40);
+		loadWord(A[15], TMP_1+44);
+		loadWord(D[12], TMP_1+48);
+		loadWord(D[13], TMP_1+52);
+		loadWord(D[14], TMP_1+56);
+		loadWord(D[15], TMP_1+60);
 	}
 	
-op lducx_ind (b:reg_a,off10:card(10),off6:card(6),off4:card(4))
+op lducx_ind (b:reg_a, off10:card(10), off6:card(6), off4:card(4))
 	predecode = {
 		off10 = off4 :: off6;
 	}
-	syntax = format("lducx [%s]%d",b.syntax,off10)
-	image = format("%4b 100101 %6b %s XXXX 01001001 %0b",off4,off6,b.image,off10)
+	syntax = format("lducx [%s]%d", b.syntax, off10)
+	image = format("%4b 100101 %6b %s XXXX 01001001 %0b", off4, off6, b.image, off10)
 	action = {
 		sign_ext10to32(off10, TMP_2);
 		TMP_1 = b+TMP_2;
-		loadWord(A[10],TMP_1+8);
-		loadWord(A[11],TMP_1+12);
-		loadWord(D[8],TMP_1+16);
-		loadWord(D[9],TMP_1+20);
-		loadWord(D[10],TMP_1+24);
-		loadWord(D[11],TMP_1+28);
-		loadWord(A[12],TMP_1+32);
-		loadWord(A[13],TMP_1+36);
-		loadWord(A[14],TMP_1+40);
-		loadWord(A[15],TMP_1+44);
-		loadWord(D[12],TMP_1+48);
-		loadWord(D[13],TMP_1+52);
-		loadWord(D[14],TMP_1+56);
-		loadWord(D[15],TMP_1+60);
+		loadWord(A[10], TMP_1+8);
+		loadWord(A[11], TMP_1+12);
+		loadWord(D[8], TMP_1+16);
+		loadWord(D[9], TMP_1+20);
+		loadWord(D[10], TMP_1+24);
+		loadWord(D[11], TMP_1+28);
+		loadWord(A[12], TMP_1+32);
+		loadWord(A[13], TMP_1+36);
+		loadWord(A[14], TMP_1+40);
+		loadWord(A[15], TMP_1+44);
+		loadWord(D[12], TMP_1+48);
+		loadWord(D[13], TMP_1+52);
+		loadWord(D[14], TMP_1+56);
+		loadWord(D[15], TMP_1+60);
 	}
 	
 op bisr(const : const9)
 	syntax = format("bisr %s", const.syntax)
-	image = format("XXXX %7b %s XXXX %8b",0x00,const.image, 0xAD)
+	image = format("XXXX %7b %s XXXX %8b", 0x00, const.image, 0xAD)
 	action = {
 		if(FCX==0) then error("TRAP bisr:FXX==0"); endif;
 		TMP_1 = FCX; //tmp_FCX
 		indice = FCXS :: 0b000000 :: FCXO :: 0b000000;
-		loadWord(TMP_2,indice); //new_fcx
-		storeWord(PCXI,indice);
-		storeWord(A[11],indice+4);
-		storeWord(A[2],indice+8);
-		storeWord(A[3],indice+12);
-		storeWord(D[0],indice+16);
-		storeWord(D[1],indice+20);
-		storeWord(D[2],indice+24);
-		storeWord(D[3],indice+28);
-		storeWord(A[4],indice+32);
-		storeWord(A[5],indice+36);
-		storeWord(A[6],indice+40);
-		storeWord(A[7],indice+44);
-		storeWord(D[4],indice+48);
-		storeWord(D[5],indice+52);
-		storeWord(D[6],indice+56);
-		storeWord(D[7],indice+60);
+		loadWord(TMP_2, indice); //new_fcx
+		storeWord(PCXI, indice);
+		storeWord(A[11], indice+4);
+		storeWord(A[2], indice+8);
+		storeWord(A[3], indice+12);
+		storeWord(D[0], indice+16);
+		storeWord(D[1], indice+20);
+		storeWord(D[2], indice+24);
+		storeWord(D[3], indice+28);
+		storeWord(A[4], indice+32);
+		storeWord(A[5], indice+36);
+		storeWord(A[6], indice+40);
+		storeWord(A[7], indice+44);
+		storeWord(D[4], indice+48);
+		storeWord(D[5], indice+52);
+		storeWord(D[6], indice+56);
+		storeWord(D[7], indice+60);
 		PCPN = CCPN;
 		PIE = IE;
 		UL = 0;
@@ -427,23 +427,23 @@ op rfe()
 		IE = PIE;
 		CCPN = PCPN;
 		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
-		loadWord(TMP_1,indice); //new_pcxi
-		loadWord(PSW,indice+4);
-		loadWord(A[10],indice+8);
-		loadWord(A[11],indice+12);
-		loadWord(D[8],indice+16);
-		loadWord(D[9],indice+20);
-		loadWord(D[10],indice+24);
-		loadWord(D[11],indice+28);
-		loadWord(A[12],indice+32);
-		loadWord(A[13],indice+36);
-		loadWord(A[14],indice+40);
-		loadWord(A[15],indice+44);
-		loadWord(D[12],indice+48);
-		loadWord(D[13],indice+52);
-		loadWord(D[14],indice+56);
-		loadWord(D[15],indice+60);
-		storeWord(FCX,indice);
+		loadWord(TMP_1, indice); //new_pcxi
+		loadWord(PSW, indice+4);
+		loadWord(A[10], indice+8);
+		loadWord(A[11], indice+12);
+		loadWord(D[8], indice+16);
+		loadWord(D[9], indice+20);
+		loadWord(D[10], indice+24);
+		loadWord(D[11], indice+28);
+		loadWord(A[12], indice+32);
+		loadWord(A[13], indice+36);
+		loadWord(A[14], indice+40);
+		loadWord(A[15], indice+44);
+		loadWord(D[12], indice+48);
+		loadWord(D[13], indice+52);
+		loadWord(D[14], indice+56);
+		loadWord(D[15], indice+60);
+		storeWord(FCX, indice);
 		FCX<19..0> = PCXI<19..0>;
 		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		PCXI = TMP_1;
@@ -459,10 +459,10 @@ op rfm()
 			IE = PIE;
 			CCPN = PCPN;
 			indice = DCX;
-			loadWord(PCXI,indice);
-			loadWord(PSW,indice+4);
-			loadWord(A[10],indice+8);
-			loadWord(A[11],indice+12);
+			loadWord(PCXI, indice);
+			loadWord(PSW, indice+4);
+			loadWord(A[10], indice+8);
+			loadWord(A[11], indice+12);
 			DTA=0;
 		endif;
 	}
@@ -474,23 +474,23 @@ op rslcx()
 		if (PCXI<19..0>==0) then error("TRAP rslcx:PCXI<19..0>==0"); endif;
 		if (UL==1) then error("TRAP rslcx:UL==1"); endif;
 		indice = PCXS :: 0b000000 :: PCXO :: 0b000000;
-		loadWord(TMP_1,indice);
-		loadWord(A[11],indice+4);
-		loadWord(A[2],indice+8);
-		loadWord(A[3],indice+12);
-		loadWord(D[0],indice+16);
-		loadWord(D[1],indice+20);
-		loadWord(D[2],indice+24);
-		loadWord(D[3],indice+28);
-		loadWord(A[4],indice+32);
-		loadWord(A[5],indice+36);
-		loadWord(A[6],indice+40);
-		loadWord(A[7],indice+44);
-		loadWord(D[4],indice+48);
-		loadWord(D[5],indice+52);
-		loadWord(D[6],indice+56);
-		loadWord(D[7],indice+60);
-		storeWord(FCX,indice);
+		loadWord(TMP_1, indice);
+		loadWord(A[11], indice+4);
+		loadWord(A[2], indice+8);
+		loadWord(A[3], indice+12);
+		loadWord(D[0], indice+16);
+		loadWord(D[1], indice+20);
+		loadWord(D[2], indice+24);
+		loadWord(D[3], indice+28);
+		loadWord(A[4], indice+32);
+		loadWord(A[5], indice+36);
+		loadWord(A[6], indice+40);
+		loadWord(A[7], indice+44);
+		loadWord(D[4], indice+48);
+		loadWord(D[5], indice+52);
+		loadWord(D[6], indice+56);
+		loadWord(D[7], indice+60);
+		storeWord(FCX, indice);
 		FCX<19..0> = PCXI<19..0>;
 		CTX = FCX<19..16>::0b000000::FCX<15..0>::0b000000;
 		PCXI = TMP_1;
