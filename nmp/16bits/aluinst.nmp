@@ -70,7 +70,7 @@ op add16_2 (a:reg_d, const1:card(4), const:int(32))
 		endif;
 	}
 	syntax = format("add %s, %d", a.syntax, const)
-	image = format("%4b%s11000010%0b", const1.image, a.image, const)
+	image = format("%4b%s11000010%0b", const1, a.image, const)
 	action = 	{ 
 		sign_ext32to64(a, TMP64_1s);
 		sign_ext32to64(const, TMP64_2s);
